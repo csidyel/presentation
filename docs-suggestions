@@ -1,0 +1,98 @@
+# https://secure.helpscout.net/conversation/916382713/20759/
+# https://secure.helpscout.net/conversation/927209463/21258/
+
+Semaphore server location
+
+All Semaphore jobs are being executed in data-center in Germany.
+
+The same caching layer is used both for macOS and Linux, however, Linux is geographically closer to the caching 
+layer and at the moment we do not have concrete plans for spreading macOS caching layers. 
+
+
+# https://secure.helpscout.net/conversation/917751522/20919/   -- Classic
+
+Job is asking for passphrase
+
+Keys generated with the newer version of RSA are not compatible with Semaphore Classic. 
+In case you find a prompt asking for a passphrase, it is likely that the machine 
+on which the key was generated is using the newer version of RSA.
+
+The easiest solution is to generate a new key in an SSH debugging session (https://semaphoreci.com/docs/ssh-access-to-build-environment.html). 
+You may achieve this by running the following command and copying the output to the configuration file prompt in 
+Semaphore web application:
+
+```bash
+ssh-keygen -f ~/.ssh/id_rsa_semaphore -t rsa -N "" && cat ~/.ssh/id_rsa_semaphore
+```
+
+# https://secure.helpscout.net/conversation/925727668/21222/
+
+How to move Docker images between jobs:
+
+You can push the built Docker image from one job to Docker registry close to our datacenter and then 
+pulling it in the next job. The geographically closest Docker registries are located in AWS Frankfurt (eu-central-1), 
+Google Docker Registry in Frankfurt, and DockerHub.
+
+However, for public images, DockerHub is the most stable since Semaphore uses our DockerHub mirror. 
+Unfortunately, our DockerHub mirror does not support private Docker images at the moment.
+
+# https://secure.helpscout.net/conversation/923639540/21126/
+
+Caching ubuntu packages:
+
+Generally, caching Ubuntu packages is not needed since Semaphore uses the Ubuntu mirror 
+which is located in the same datacenter as Semaphore builders.
+
+If the package originates from the custom software repository, you may cache the content of /var/apt/archive/ folder. 
+This would eliminate the need for downloading the packages from the Internet but the installation would still be required. 
+This approach saves some (download) time but requires cache logic to be added to your project.
+The following example shows how to cache vips-libs packages that are hosted in the specific package repository:
+
+```yaml
+checkout
+mkdir $HOME/vips-libs && cd $HOME/vips-libs && cache restore vips-libs
+if [ $(ls -l | wc -l)>0 ]; then sudo mv * /var/cache/apt/archives/ && cd $HOME; fi;
+echo "deb http://cz.archive.ubuntu.com/ubuntu cosmic main universe" | sudo tee -a /etc/apt/sources.list
+sudo apt-get update ; sudo apt-get install -y libvips-dev libvips-tools libvips42
+cd /var/cache/apt/archives && cache store vips-libs-$(ls | checksum) .
+cd $HOME/$SEMAPHORE_PROJECT_DIR
+```
+
+The idea is to restore the cache (if exists) and set up the custom repository in case the cache archive is not found. 
+If the cache archive exists, packages will be restored to the `/var/apt/archive/` folder, 
+one used by the `apt-get install` command by default. If the cache archive does not exist, 
+packages will be downloaded from the repository. After installation, the packages located in `/var/apt/archive/`
+folder will be saved to the cache.
+
+For more information on the cache mechanism, please see https://docs.semaphoreci.com/article/54-toolbox-reference#cache.
+
+# https://secure.helpscout.net/conversation/918246402/20935/
+
+How to create a Github machine user:
+
+For projects using multiple submodules you can the machine user on GitHub and allowing it to access your repositories 
+
+More information about this topic here: (https://developer.github.com/v3/guides/managing-deploy-keys/#machine-users)
+
+1. Create a machine user with access to repositories
+2. Generate a new SSH key-pair for the machine user (public part goes to Github)
+3. Adding the private part of the key to Semaphore
+
+Please note that the git client uses only the first SSH key from ssh-agent.
+
+# https://secure.helpscout.net/conversation/927689942/21286/
+
+(Check if we want to do this)
+Change here https://docs.semaphoreci.com/article/100-heroku-deployment#define-the-deployment-pipeline
+
+`SEMAPHORE_GIT_PR_SHA` instead of `SEMAPHORE_GIT_BRANCH` 
+
+# https://secure.helpscout.net/conversation/935469757/21540/
+
+(Check if we want to do this)
+
+Change these:
+https://docs.semaphoreci.com/article/97-continuous-deployment-static-website
+https://docs.semaphoreci.com/article/141-netlify-continuous-deployment
+
+To include `checksum` in the cache key names.
