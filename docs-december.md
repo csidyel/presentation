@@ -32,3 +32,6 @@ We recommend using `sem get jobs` to get the list of all running jobs, including
 [quota]: https://docs.semaphoreci.com/article/133-quotas-and-limits
 [sem stop]: https://docs.semaphoreci.com/article/53-sem-reference#sem-get-examples
 
+- Q: I get this error `Editor closed with with 'signal: abort trap'` when editing my project file.
+
+- A: The CLI is using the `$EDITOR` environment variable to look up your editor, or in case the variable is not set, it is defaulting to `vim`.
