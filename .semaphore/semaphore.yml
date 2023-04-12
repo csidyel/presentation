@@ -10,6 +10,6 @@ blocks:
       secrets:
         - name: check-me
       jobs:
-        - name: 'Job #1'
+        - name: 'Job #'
           commands:
             - 'cache restore gems-$SEMAPHORE_GIT_BRANCH-revision-$(checksum Gemfile.lock),gems-master'
