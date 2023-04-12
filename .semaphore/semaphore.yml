@@ -7,6 +7,8 @@ agent:
 blocks:
   - name: 'Block #1'
     task:
+      secrets:
+        - name: check-me
       jobs:
         - name: 'Job #1'
           commands:
