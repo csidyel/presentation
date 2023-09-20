@@ -7,9 +7,7 @@ agent:
 blocks:
   - name: 'Block #1'
     task:
-      secrets:
-        - name: check-me
       jobs:
         - name: 'Job #'
           commands:
-            - 'cache restore gems-$SEMAPHORE_GIT_BRANCH-revision-$(checksum Gemfile.lock),gems-master'
+            - echo "test 1"
