@@ -4,10 +4,13 @@ agent:
   machine:
     type: e1-standard-2
     os_image: ubuntu2004
+  containers:
+    - name: main
+      image: 'registry.semaphoreci.com/ruby:3.2.2-bullseye-node-browsers'
 blocks:
   - name: 'Block #1'
     task:
       jobs:
         - name: 'Job #'
           commands:
-            - echo "test 1"
+            - openssl version
