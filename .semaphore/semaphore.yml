@@ -6,7 +6,7 @@ agent:
     os_image: ubuntu2004
   containers:
     - name: main
-      image: 'registry.semaphoreci.com/ruby:3.2.2-bullseye-node-browsers'
+      image: 'registry.semaphoreci.com/ruby:3.2.2-bookworm-node-browsers'
 blocks:
   - name: 'Block #1'
     task:
