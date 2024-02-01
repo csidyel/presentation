@@ -13,6 +13,10 @@ blocks:
       jobs:
         - name: 'Job #'
           commands:
-            - openssl version
+            - checkout
+            - cache restore ruby-2.3.2
+            - sem-version ruby 2.3.2
+            - cache store ruby-2.3.2 /home/semaphore/.rbenv/versions/2.3.2
+            - ruby -v
     run:
       when: change_in('/lib')
