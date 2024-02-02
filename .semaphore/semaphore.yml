@@ -17,3 +17,10 @@ blocks:
             - ruby -v
     run:
       when: change_in('/lib')
+  - name: 'Block #2'
+    task:
+      jobs:
+        - name: 'Job #1'
+          commands:
+            - echo "test"
+          parallelism: 10
