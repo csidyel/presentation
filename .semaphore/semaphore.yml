@@ -4,6 +4,10 @@ agent:
   machine:
     type: e1-standard-2
     os_image: ubuntu2004
+global_job_config:
+  env_vars:
+    - name: SEMAPHORE_GIT_DEPTH
+      value: '1'
 blocks:
   - name: 'Block #1'
     task:
