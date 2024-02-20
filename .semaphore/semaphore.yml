@@ -2,8 +2,8 @@ version: v1.0
 name: Initial Pipeline
 agent:
   machine:
-    type: e1-standard-2
-    os_image: ubuntu2004
+    type: e2-standard-4
+    os_image: ubuntu2204
 global_job_config:
   env_vars:
     - name: SEMAPHORE_GIT_DEPTH
@@ -14,7 +14,25 @@ blocks:
       jobs:
         - name: 'Job #'
           commands:
-            - echo "test"
+            - sudo apt-get -y update
+            - sudo apt-get -y upgrade
+            - sudo apt-get install -y --allow-unauthenticated \
+            - '    build-essential \'
+            - '    ca-certificates \'
+            - '    imagemagick \'
+            - '    jq \'
+            - '    procps \'
+            - '    gnupg \'
+            - '    qpdf \'
+            - '    imagemagick \'
+            - '    xpdf \'
+            - '    qpdf \'
+            - '    ghostscript \'
+            - '    libgs-dev \'
+            - '    pdftk \'
+            - '    inotify-tools \'
+            - '    wget \'
+            - '    zip'
       secrets:
         - name: buildkite
   - name: 'Block #2'
