@@ -15,7 +15,7 @@ blocks:
         - name: 'Job #'
           commands:
             - sudo apt-get -y update
-            - sudo apt-get -y upgrade
+            - echo "OK" | sudo apt-get -y upgrade
             - sudo apt-get install -y --allow-unauthenticated \
             - '    build-essential \'
             - '    ca-certificates \'
