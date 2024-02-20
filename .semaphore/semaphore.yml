@@ -3,7 +3,7 @@ name: Initial Pipeline
 agent:
   machine:
     type: e2-standard-4
-    os_image: ubuntu2204
+    os_image: ubuntu2004
 global_job_config:
   env_vars:
     - name: SEMAPHORE_GIT_DEPTH
