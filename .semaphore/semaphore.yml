@@ -3,7 +3,7 @@ name: Initial Pipeline
 agent:
   machine:
     type: e2-standard-4
-    os_image: ubuntu2004
+    os_image: ubuntu2204
 global_job_config:
   env_vars:
     - name: SEMAPHORE_GIT_DEPTH
@@ -16,6 +16,7 @@ blocks:
           commands:
             - sudo apt-get -y update
             - echo "OK" | sudo apt-get -y upgrade
+            - sudo NEEDRESTART_MODE=a apt-get -y upgrade
             - sudo apt-get install -y --allow-unauthenticated \
             - '    build-essential \'
             - '    ca-certificates \'
