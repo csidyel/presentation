@@ -15,7 +15,6 @@ blocks:
         - name: 'Job #'
           commands:
             - sudo apt-get -y update
-            - echo "OK" | sudo apt-get -y upgrade
             - sudo NEEDRESTART_MODE=a apt-get -y upgrade
             - sudo apt-get install -y --allow-unauthenticated \
             - '    build-essential \'
