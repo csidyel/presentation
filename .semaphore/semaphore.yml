@@ -14,11 +14,6 @@ blocks:
       jobs:
         - name: 'Job #'
           commands:
-            - sudo apt-get -y update
-            - sudo apt-get -y upgrade
-            - 'wget http://security.ubuntu.com/ubuntu/pool/main/p/poppler/libpoppler73_0.62.0-2ubuntu2.14_amd64.deb'
-            - sudo apt install -y ./libpoppler73_0.62.0-2ubuntu2.14_amd64.deb
-            - 'wget http://archive.ubuntu.com/ubuntu/pool/universe/x/xpdf/xpdf_3.04-7_amd64.deb'
-            - sudo apt install -y ./xpdf_3.04-7_amd64.deb
+            - sem-service start elasticsearch 8.11.3
       secrets:
         - name: buildkite
