@@ -14,6 +14,7 @@ blocks:
       jobs:
         - name: 'Job #'
           commands:
-            - sem-service start elasticsearch 8.11.3
+            - time sem-service start elasticsearch 8.11.3 &
+            - echo "test"
       secrets:
         - name: buildkite
