@@ -14,7 +14,15 @@ blocks:
       jobs:
         - name: 'Job #'
           commands:
-            - time sem-service start elasticsearch 8.11.3 &
             - echo "test"
       secrets:
         - name: buildkite
+promotions:
+  - name: Promotion 1
+    pipeline_file: pipeline_2.yml
+    auto_promote:
+      when: branch = 'master' AND result = 'passed'
+  - name: Promotion 2
+    pipeline_file: pipeline_3.yml
+    auto_promote:
+      when: branch = 'master' AND result = 'passed'
