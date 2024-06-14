@@ -2,12 +2,8 @@ version: v1.0
 name: Initial Pipeline
 agent:
   machine:
-    type: e2-standard-2
-    os_image: ubuntu2004
-global_job_config:
-  env_vars:
-    - name: SEMAPHORE_GIT_DEPTH
-      value: '1'
+    type: a2-standard-4
+    os_image: macos-xcode15
 blocks:
   - name: 'Block #1'
     task:
@@ -15,14 +11,3 @@ blocks:
         - name: 'Job #'
           commands:
             - echo "test"
-      secrets:
-        - name: buildkite
-promotions:
-  - name: Promotion 1
-    pipeline_file: pipeline_2.yml
-    auto_promote:
-      when: branch = 'master' AND result = 'passed'
-  - name: Promotion 2
-    pipeline_file: pipeline_3.yml
-    auto_promote:
-      when: branch = 'master' AND result = 'passed'
