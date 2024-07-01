@@ -1,0 +1,15 @@
+name: CI
+on: 
+  push:
+    branches:
+      - master
+
+jobs:
+  integration-test-elixir:
+    runs-on: ubuntu-20.04
+    env:
+      FORCE_COLOR: 1
+
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash ./sysinfo.sh
