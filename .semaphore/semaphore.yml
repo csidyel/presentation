@@ -8,6 +8,6 @@ blocks:
   - name: 'Block #1'
     task:
       jobs:
-        - name: 'Job #'
+        - name: 'Job #1'
           commands:
             - xcversion select 15.3
