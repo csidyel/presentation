@@ -10,4 +10,4 @@ blocks:
       jobs:
         - name: 'Job #'
           commands:
-            - echo "test"
+            - xcversion select 15.3
