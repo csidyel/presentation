@@ -19,18 +19,21 @@ blocks:
         - name: Run Brakeman
           commands:
             - bin/brakeman --no-pager
+    dependencies: []
   - name: Scan JS
     task:
       jobs:
         - name: Run JavaScript Security Audit
           commands:
             - bin/importmap audit
+    dependencies: []
   - name: Lint
     task:
       jobs:
         - name: Run RuboCop
           commands:
             - bundle exec rubocop -f github
+    dependencies: []
   - name: Run Tests
     task:
       jobs:
@@ -41,3 +44,4 @@ blocks:
             - 'bundle exec rake db:setup'
             - bundle exec rake
             - 'bin/rails db:test:prepare test test:system'
+    dependencies: []
