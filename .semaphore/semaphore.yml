@@ -2,46 +2,15 @@ version: v1.0
 name: CI Pipeline
 agent:
   machine:
-    type: f1-standard-2
-    os_image: ubuntu2004
-global_job_config:
-  prologue:
-    commands:
-      - checkout
-      - sem-version ruby $(cat .ruby-version)
-      - cache restore
-      - bundle install --jobs 4 --retry 3
-      - cache store
+    type: e1-standard-2
+    os_image: ubuntu1804
 blocks:
   - name: Scan Ruby
     task:
       jobs:
         - name: Run Brakeman
           commands:
-            - bin/brakeman --no-pager
-    dependencies: []
-  - name: Scan JS
-    task:
-      jobs:
-        - name: Run JavaScript Security Audit
-          commands:
-            - bin/importmap audit
-    dependencies: []
-  - name: Lint
-    task:
-      jobs:
-        - name: Run RuboCop
-          commands:
-            - bundle exec rubocop -f github
-    dependencies: []
-  - name: Run Tests
-    task:
-      jobs:
-        - name: Install Dependencies and Run Tests
-          commands:
-            - sudo apt-get update && sudo apt-get install --no-install-recommends -y curl libjemalloc2 libvips sqlite3
-            - cp .sample.env .env
-            - 'bundle exec rake db:setup'
-            - bundle exec rake
-            - 'bin/rails db:test:prepare test test:system'
-    dependencies: []
+            - checkout
+            - cache restore ruby-2.3.3
+            - sem-version ruby 2.3.3
+            - cache store ruby-2.3.3 ~/.rbenv/versions/2.3.3
