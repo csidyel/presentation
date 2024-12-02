@@ -38,7 +38,6 @@ if [ ! -f "vendor/chrome/chrome.zip" ]; then
 fi
 # check if extracted archive dir exists. if not, extract the zip
 if [ ! -d "vendor/chrome/chrome-linux64" ]; then
-  clear_cache=1
   unzip -o vendor/chrome/chrome.zip -d vendor/chrome
 fi
 
@@ -50,7 +49,6 @@ if [ ! -f "vendor/chrome/chromedriver.zip" ]; then
 fi
 # check if extracted archive dir exists. if not, extract the zip
 if [ ! -d "vendor/chrome/chromedriver-linux64" ]; then
-  clear_cache=1
   unzip -o vendor/chrome/chromedriver.zip -d vendor/chrome
 fi
 
