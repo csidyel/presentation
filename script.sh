@@ -19,12 +19,12 @@ CHROME_CACHE_KEY="chrome-$CHROME_STABLE_VERSION"
 CHROMEDRIVER_CACHE_KEY="chromedriver-$CHROME_STABLE_VERSION"
 
 retry --sleep 5 --times 5 "cache restore ${CHROME_CACHE_KEY}"
-CHROME_CACHE_RESTORE_PID=$!
-wait $CHROME_CACHE_RESTORE_PID
+#CHROME_CACHE_RESTORE_PID=$!
+#wait $CHROME_CACHE_RESTORE_PID
 
 retry --sleep 5 --times 5 "cache restore ${CHROMEDRIVER_CACHE_KEY}"
-CHROMEDRIVER_CACHE_RESTORE_PID=$!
-wait $CHROMEDRIVER_CACHE_RESTORE_PID
+#CHROMEDRIVER_CACHE_RESTORE_PID=$!
+#wait $CHROMEDRIVER_CACHE_RESTORE_PID
 
 mkdir -p vendor/chrome
 
@@ -58,10 +58,10 @@ fi
 if [ "$clear_cache" -eq 1 ]; then
   cache delete  "$CHROME_CACHE_KEY" # clear out if it already exists. we want to store fresh data.
   retry --sleep 5 --times 5 "cache store $CHROME_CACHE_KEY vendor/chrome/chrome.zip"
-  CHROME_CACHE_STORE_PID=$!
-  wait $CHROME_CACHE_STORE_PID
+  #CHROME_CACHE_STORE_PID=$!
+  #wait $CHROME_CACHE_STORE_PID
   cache delete  "$CHROMEDRIVER_CACHE_KEY" # clear out if it already exists. we want to store fresh data.
   retry --sleep 5 --times 5 "cache store $CHROMEDRIVER_CACHE_KEY vendor/chrome/chromedriver.zip"
-  CHROMEDRIVER_CACHE_RESTORE_PID=$!
-  wait $CHROMEDRIVER_CACHE_RESTORE_PID
+  #CHROMEDRIVER_CACHE_RESTORE_PID=$!
+  #wait $CHROMEDRIVER_CACHE_RESTORE_PID
 fi
