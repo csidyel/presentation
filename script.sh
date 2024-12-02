@@ -22,6 +22,10 @@ retry --sleep 5 --times 5 "cache restore ${CHROME_CACHE_KEY}"
 CHROME_CACHE_RESTORE_PID=$!
 wait $CHROME_CACHE_RESTORE_PID
 
+retry --sleep 5 --times 5 "cache restore ${CHROMEDRIVER_CACHE_KEY}"
+CHROMEDRIVER_CACHE_RESTORE_PID=$!
+wait $CHROMEDRIVER_CACHE_RESTORE_PID
+
 mkdir -p vendor/chrome
 
 clear_cache=0
