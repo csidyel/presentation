@@ -15,3 +15,15 @@ blocks:
             - bash script.sh
             - bash install_chrome.sh
             - google-chrome --version
+    dependencies: []
+  - name: 'Block #2'
+    dependencies: []
+    task:
+      jobs:
+        - name: Our tool
+          commands:
+            - google-chrome --version
+            - 'wget -q https://raw.githubusercontent.com/renderedtext/snippets/master/chrome-setup/chrome-setup.sh -O ~/chrome-setup.sh'
+            - chmod +x ~/chrome-setup.sh
+            - ~/chrome-setup.sh 131.0.6778.85
+            - google-chrome --version
