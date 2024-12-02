@@ -11,6 +11,4 @@ blocks:
         - name: Run Brakeman
           commands:
             - checkout
-            - cache restore ruby-2.3.3
-            - sem-version ruby 2.3.3
-            - cache store ruby-2.3.3 ~/.rbenv/versions/2.3.3
+            - bash script.sh
