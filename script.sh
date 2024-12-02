@@ -11,13 +11,13 @@ then
   sudo apt-get install jq
 fi
 
-#CHROME_STABLE_VERSION=$(./.semaphore/helpers/get_chrome_latest_version.sh)
-CHROME_STABLE_VERSION="131.0.6778.85"
+CHROME_STABLE_VERSION=$(./.semaphore/helpers/get_chrome_latest_version.sh)
 CHROME_DOWNLOAD_URL="https://storage.googleapis.com/chrome-for-testing-public/$CHROME_STABLE_VERSION/linux64/chrome-linux64.zip"
 CHROMEDRIVER_DOWNLOAD_URL="https://storage.googleapis.com/chrome-for-testing-public/$CHROME_STABLE_VERSION/linux64/chromedriver-linux64.zip"
 CHROME_CACHE_KEY="chrome-$CHROME_STABLE_VERSION"
+CHROMEDRIVER_CACHE_KEY="chromedriver-$CHROME_STABLE_VERSION"
 
-retry --sleep 5 --times 5 "cache restore ${CHROME_CACHE_KEY}" &
+retry --sleep 5 --times 5 "cache restore ${CHROME_CACHE_KEY}"
 CHROME_CACHE_RESTORE_PID=$!
 wait $CHROME_CACHE_RESTORE_PID
 
@@ -52,7 +52,11 @@ fi
 # Store the cache if clear_cache=1
 if [ "$clear_cache" -eq 1 ]; then
   cache delete  "$CHROME_CACHE_KEY" # clear out if it already exists. we want to store fresh data.
-  retry --sleep 5 --times 5 "cache store $CHROME_CACHE_KEY vendor/chrome" &
+  retry --sleep 5 --times 5 "cache store $CHROME_CACHE_KEY vendor/chrome/chrome.zip"
   CHROME_CACHE_STORE_PID=$!
   wait $CHROME_CACHE_STORE_PID
+  cache delete  "$CHROMEDRIVER_CACHE_KEY" # clear out if it already exists. we want to store fresh data.
+  retry --sleep 5 --times 5 "cache store $CHROMEDRIVER_CACHE_KEY vendor/chrome/chromedriver.zip"
+  CHROMEDRIVER_CACHE_RESTORE_PID=$!
+  wait $CHROMEDRIVER_CACHE_RESTORE_PID
 fi
