@@ -27,3 +27,6 @@ blocks:
             - chmod +x ~/chrome-setup.sh
             - ~/chrome-setup.sh 131.0.6778.85
             - google-chrome --version
+promotions:
+  - name: Promotion 1
+    pipeline_file: pipeline_4.yml
