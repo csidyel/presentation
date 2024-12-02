@@ -11,7 +11,8 @@ then
   sudo apt-get install jq
 fi
 
-CHROME_STABLE_VERSION=$(./.semaphore/helpers/get_chrome_latest_version.sh)
+#CHROME_STABLE_VERSION=$(./.semaphore/helpers/get_chrome_latest_version.sh)
+CHROME_STABLE_VERSION="131.0.6778.85"
 CHROME_DOWNLOAD_URL="https://storage.googleapis.com/chrome-for-testing-public/$CHROME_STABLE_VERSION/linux64/chrome-linux64.zip"
 CHROMEDRIVER_DOWNLOAD_URL="https://storage.googleapis.com/chrome-for-testing-public/$CHROME_STABLE_VERSION/linux64/chromedriver-linux64.zip"
 CHROME_CACHE_KEY="chrome-$CHROME_STABLE_VERSION"
