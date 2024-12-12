@@ -11,6 +11,12 @@ blocks:
         - name: 'Job #1'
           commands:
             - echo "job 1"
+        - name: 'Job #2'
+          commands:
+            - echo "test"
+        - name: 'Job #3'
+          commands:
+            - echo "job 3"
     dependencies: []
   - name: Block B
     dependencies: []
