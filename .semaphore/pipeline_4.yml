@@ -5,9 +5,17 @@ agent:
     type: e1-standard-2
     os_image: ubuntu2004
 blocks:
-  - name: 'Block #1'
+  - name: Block A
     task:
       jobs:
         - name: 'Job #1'
           commands:
             - echo "job 1"
+    dependencies: []
+  - name: Block B
+    dependencies: []
+    task:
+      jobs:
+        - name: 'Job #1'
+          commands:
+            - echo "test"
