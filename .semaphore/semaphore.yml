@@ -5,13 +5,31 @@ agent:
     type: f1-standard-2
     os_image: ubuntu2004
 blocks:
-  - name: Scan Ruby
+  - name: Frontend Cache (test)
     task:
       jobs:
-        - name: Run Brakeman
+        - name: Build Ember Cache
           commands:
-            - echo "test"
+            - sleep 30
     dependencies: []
+  - name: Frontend Tests
+    dependencies:
+      - Frontend Cache (test)
+    task:
+      jobs:
+        - name: 'Frontend '
+          commands:
+            - sleep $((RANDOM % 111 + 90))
+          parallelism: 5
+  - name: Rails Tests
+    dependencies:
+      - Frontend Cache (test)
+    task:
+      jobs:
+        - name: Rails
+          commands:
+            - sleep $((RANDOM % 111 + 90))
+          parallelism: 5
 promotions:
   - name: Promotion 1
     pipeline_file: pipeline_4.yml

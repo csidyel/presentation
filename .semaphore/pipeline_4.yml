@@ -10,18 +10,18 @@ blocks:
       jobs:
         - name: 'Job #1'
           commands:
-            - echo "job 1"
+            - sleep 20
         - name: 'Job #2'
           commands:
-            - echo "test"
+            - sleep 40
         - name: 'Job #3'
           commands:
-            - echo "job 3"
+            - sleep 50
     dependencies: []
-  - name: Block B
+  - name: Javascript Tests
     dependencies: []
     task:
       jobs:
-        - name: 'Job #1'
+        - name: Javascript
           commands:
-            - echo "test"
+            - sleep 40
