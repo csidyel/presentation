@@ -3,7 +3,15 @@ name: Ruby CI Pipeline
 agent:
   machine:
     type: f1-standard-2
-    os_image: ubuntu20.04
+    os_image: ubuntu2204
+fail_fast:
+  stop:
+    when: branch != 'master'
+auto_cancel:
+  running:
+    when: branch != 'master'
+  queued:
+    when: branch = 'master'
 global_job_config:
   prologue:
     commands:
@@ -52,15 +60,27 @@ blocks:
           value: 127.0.0.1
         - name: PGUSER
           value: postgres
-        - name: KNAPSACK_PRO_TEST_SUITE_TOKEN_RSPEC
-          value: YOUR_RSPEC_API_TOKEN
+        - name: KNAPSACK_TEST_FILE_PATTERN
+          value: 'spec/**{,/*/**}/*_spec.rb'
+        - name: KNAPSACK_REPORT_PATH
+          value: knapsack_rspec_rails_report.json
       jobs:
-        - name: Run RSpec Tests with Knapsack Pro
+        - name: Run RSpec Tests with Knapsack
           parallelism: 5
           commands:
             - 'bundle exec rake db:setup'
-            - 'bundle exec rake knapsack_pro:queue:rspec'
+            - 'CI_NODE_TOTAL=$SEMAPHORE_JOB_COUNT CI_NODE_INDEX=$((SEMAPHORE_JOB_INDEX-1)) bundle exec rake "knapsack:rspec[-t ~manual -t ~v4 --format RspecJunitFormatter --out report.xml --format documentation]"'
+      epilogue:
+        always:
+          commands:
+            - '[[ -f report.xml ]] && test-results publish report.xml'
     dependencies:
       - "\U0001F50D Run Bundler Audit"
       - "\U0001F6E1️ Run Brakeman"
       - "\U0001F9F9 Run RuboCop"
+after_pipeline:
+  task:
+    jobs:
+      - name: "Merge Reports \U0001F4CA"
+        commands:
+          - test-results gen-pipeline-report
