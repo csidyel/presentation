@@ -1,37 +1,66 @@
 version: v1.0
-name: CI Pipeline
+name: Ruby CI Pipeline
 agent:
   machine:
     type: f1-standard-2
-    os_image: ubuntu2004
+    os_image: ubuntu20.04
+global_job_config:
+  prologue:
+    commands:
+      - checkout
+      - sem-version ruby 3.2.2
+      - cache restore
+      - bundle install --deployment --path vendor/bundle
 blocks:
-  - name: Frontend Cache (test)
+  - name: "\U0001F527 Setup and Cache"
     task:
       jobs:
-        - name: Build Ember Cache
+        - name: Install Dependencies
           commands:
-            - sleep 30
+            - cache store
     dependencies: []
-  - name: Frontend Tests
-    dependencies:
-      - Frontend Cache (test)
+  - name: "\U0001F9F9 Run RuboCop"
     task:
       jobs:
-        - name: 'Frontend '
+        - name: Run RuboCop
           commands:
-            - sleep $((RANDOM % 111 + 90))
-          parallelism: 5
-  - name: Rails Tests
+            - bundle exec rubocop
     dependencies:
-      - Frontend Cache (test)
+      - "\U0001F527 Setup and Cache"
+  - name: "\U0001F6E1️ Run Brakeman"
     task:
       jobs:
-        - name: Rails
+        - name: Run Brakeman
           commands:
-            - sleep $((RANDOM % 111 + 90))
+            - bundle exec brakeman --force
+    dependencies:
+      - "\U0001F527 Setup and Cache"
+  - name: "\U0001F50D Run Bundler Audit"
+    task:
+      jobs:
+        - name: Run Bundler Audit
+          commands:
+            - bundle exec bundle-audit check --update
+    dependencies:
+      - "\U0001F527 Setup and Cache"
+  - name: "\U0001F6A6 Test Suite"
+    task:
+      env_vars:
+        - name: RAILS_ENV
+          value: test
+        - name: PGHOST
+          value: 127.0.0.1
+        - name: PGUSER
+          value: postgres
+        - name: KNAPSACK_PRO_TEST_SUITE_TOKEN_RSPEC
+          value: YOUR_RSPEC_API_TOKEN
+      jobs:
+        - name: Run RSpec Tests with Knapsack Pro
           parallelism: 5
-promotions:
-  - name: Promotion 1
-    pipeline_file: pipeline_4.yml
-    auto_promote:
-      when: result = 'passed'
+          commands:
+            - 'bundle exec rake db:setup'
+            - 'bundle exec rake knapsack_pro:queue:rspec'
+    dependencies:
+      - "\U0001F50D Run Bundler Audit"
+      - "\U0001F6E1️ Run Brakeman"
+      - "\U0001F9F9 Run RuboCop"
