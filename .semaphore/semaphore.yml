@@ -65,7 +65,7 @@ blocks:
         - name: KNAPSACK_REPORT_PATH
           value: knapsack_rspec_rails_report.json
       jobs:
-        - name: "\U0001F7E2 RSpec Tests "
+        - name: "\U0001F7E2 RSpec Tests"
           parallelism: 5
           commands:
             - 'bundle exec rake db:setup'
