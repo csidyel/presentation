@@ -1,5 +1,5 @@
 version: v1.0
-name: Ruby CI Pipeline
+name: "\U0001F48E Ruby CI Pipeline"
 agent:
   machine:
     type: f1-standard-2
@@ -16,7 +16,7 @@ global_job_config:
   prologue:
     commands:
       - checkout
-      - sem-version ruby 3.2.2
+      - sem-version ruby 3.2.4
       - cache restore
       - bundle install --deployment --path vendor/bundle
 blocks:
@@ -30,7 +30,7 @@ blocks:
   - name: "\U0001F9F9 Run RuboCop"
     task:
       jobs:
-        - name: Run RuboCop
+        - name: bundle exec rubocop
           commands:
             - bundle exec rubocop
     dependencies:
@@ -38,7 +38,7 @@ blocks:
   - name: "\U0001F6E1️ Run Brakeman"
     task:
       jobs:
-        - name: Run Brakeman
+        - name: bundle exec brakeman --force
           commands:
             - bundle exec brakeman --force
     dependencies:
@@ -46,7 +46,7 @@ blocks:
   - name: "\U0001F50D Run Bundler Audit"
     task:
       jobs:
-        - name: Run Bundler Audit
+        - name: bundle exec bundle-audit check --update
           commands:
             - bundle exec bundle-audit check --update
     dependencies:
@@ -65,11 +65,13 @@ blocks:
         - name: KNAPSACK_REPORT_PATH
           value: knapsack_rspec_rails_report.json
       jobs:
-        - name: Run RSpec Tests with Knapsack
+        - name: "\U0001F7E2 RSpec Tests "
           parallelism: 5
           commands:
             - 'bundle exec rake db:setup'
             - 'CI_NODE_TOTAL=$SEMAPHORE_JOB_COUNT CI_NODE_INDEX=$((SEMAPHORE_JOB_INDEX-1)) bundle exec rake "knapsack:rspec[-t ~manual -t ~v4 --format RspecJunitFormatter --out report.xml --format documentation]"'
+      secrets:
+        - name: KNAPSACK_PRO_TEST_SUITE_TOKEN_RSPEC
       epilogue:
         always:
           commands:
