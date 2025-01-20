@@ -17,8 +17,6 @@ blocks:
                 echo "Command failed";
                 return 1;
               fi
-      secrets:
-        - name: API_TOKEN
     dependencies:
       - 'Block #1'
   - name: 'Block #1'
@@ -30,6 +28,8 @@ blocks:
             - echo "run"
 after_pipeline:
   task:
+    secrets:
+      - name: API_TOKEN
     jobs:
       - name: Rebuild pipeline
         commands:
