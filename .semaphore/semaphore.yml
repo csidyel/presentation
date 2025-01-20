@@ -23,14 +23,15 @@ blocks:
         always:
           commands:
             - echo $SEMAPHORE_JOB_RESULT
-            - 'if [ "$SEMAPHORE_JOB_RESULT" = "failed" ]; then'
-            - '  curl https://storage.googleapis.com/sem-cli-releases/get.sh | bash'
-            - '  sem connect semaphore-demo-flow.semaphoreci.com $API_TOKEN'
-            - '  echo $SEMAPHORE_PIPELINE_ID'
-            - '  sem rebuild pipeline $SEMAPHORE_PIPELINE_ID'
-            - else
-            - '  echo "Pipeline result is not ''failed''. Skipping commands."'
-            - fi
+            - |
+              if [ "$SEMAPHORE_JOB_RESULT" = "failed" ]; then
+                curl https://storage.googleapis.com/sem-cli-releases/get.sh | bash
+                sem connect semaphore-demo-flow.semaphoreci.com $API_TOKEN
+                echo $SEMAPHORE_PIPELINE_ID
+                sem rebuild pipeline $SEMAPHORE_PIPELINE_ID
+              else
+                echo "Pipeline result is not ''failed''. Skipping commands."
+              fi
     dependencies:
       - 'Block #1'
   - name: 'Block #1'
