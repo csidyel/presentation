@@ -11,11 +11,11 @@ blocks:
         - name: test usecase
           commands:
             - |
-            if (( RANDOM % 2 == 0 )); then
-              echo "Command succeeded";
-            else
-              echo "Command failed";
-              return 1;
+              if (( RANDOM % 2 == 0 )); then
+                echo "Command succeeded";
+              else
+                echo "Command failed";
+                return 1;
               fi
       secrets:
         - name: API_TOKEN
