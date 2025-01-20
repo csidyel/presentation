@@ -5,10 +5,10 @@ agent:
     type: f1-standard-2
     os_image: ubuntu2004
 blocks:
-  - name: Rebuild block
+  - name: 'Test suite #1'
     task:
       jobs:
-        - name: test usecase
+        - name: running tests
           commands:
             - |
               if (( RANDOM % 2 == 0 )); then
@@ -19,18 +19,6 @@ blocks:
               fi
       secrets:
         - name: API_TOKEN
-      epilogue:
-        always:
-          commands:
-            - echo $SEMAPHORE_JOB_RESULT
-            - |
-              if [ "$SEMAPHORE_PIPELINE_RESULT" = "failed" ]; then
-                curl -H "Authorization: Token $API_TOKEN" \
-                     -d "name=Rebuild&pipeline_id=$SEMAPHORE_PIPELINE_ID" \
-                     -X POST "$SEMAPHORE_ORGANIZATION_URL/api/v1alpha/promotions"
-              else
-                echo "Pipeline result is not 'failed'. Skipping promotion API call."
-              fi
     dependencies:
       - 'Block #1'
   - name: 'Block #1'
@@ -40,3 +28,16 @@ blocks:
         - name: 'Job #1'
           commands:
             - echo "run"
+after_pipeline:
+  task:
+    jobs:
+      - name: Rebuild pipeline
+        commands:
+          - echo $SEMAPHORE_PIPELINE_ID
+          - 'if [ "$SEMAPHORE_PIPELINE_ID" = "failed" ]; then'
+          - '  curl https://storage.googleapis.com/sem-cli-releases/get.sh | bash'
+          - '  sem connect semaphore-demo-flow.semaphoreci.com $API_TOKEN'
+          - '  sem rebuild pipeline $SEMAPHORE_PIPELINE_ID'
+          - else
+          - '  echo "Pipeline result is not ''failed''. Skipping commands."'
+          - fi
