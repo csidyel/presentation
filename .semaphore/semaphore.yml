@@ -11,27 +11,11 @@ blocks:
         - name: Build Ember Cache
           commands:
             - sleep 30
+            - |
+              if (( RANDOM % 2 == 0 )); then
+                echo "Command succeeded";
+              else
+                echo "Command failed";
+                return 1;
+              fi
     dependencies: []
-  - name: Frontend Tests
-    dependencies:
-      - Frontend Cache (test)
-    task:
-      jobs:
-        - name: 'Frontend '
-          commands:
-            - sleep $((RANDOM % 111 + 90))
-          parallelism: 5
-  - name: Rails Tests
-    dependencies:
-      - Frontend Cache (test)
-    task:
-      jobs:
-        - name: Rails
-          commands:
-            - sleep $((RANDOM % 111 + 90))
-          parallelism: 5
-promotions:
-  - name: Promotion 1
-    pipeline_file: pipeline_4.yml
-    auto_promote:
-      when: result = 'passed'
