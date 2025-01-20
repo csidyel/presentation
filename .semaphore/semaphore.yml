@@ -35,7 +35,7 @@ after_pipeline:
         commands:
           - echo $SEMAPHORE_PIPELINE_ID
           - |
-            if [ "$SEMAPHORE_PIPELINE_ID" = "failed" ]; then
+            if [ "$SEMAPHORE_PIPELINE_RESULT" = "failed" ]; then
               curl https://storage.googleapis.com/sem-cli-releases/get.sh | bash
               sem connect semaphore-demo-flow.semaphoreci.com $API_TOKEN
               sem rebuild pipeline $SEMAPHORE_PIPELINE_ID
