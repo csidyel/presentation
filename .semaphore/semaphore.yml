@@ -34,10 +34,11 @@ after_pipeline:
       - name: Rebuild pipeline
         commands:
           - echo $SEMAPHORE_PIPELINE_ID
-          - 'if [ "$SEMAPHORE_PIPELINE_ID" = "failed" ]; then'
-          - '  curl https://storage.googleapis.com/sem-cli-releases/get.sh | bash'
-          - '  sem connect semaphore-demo-flow.semaphoreci.com $API_TOKEN'
-          - '  sem rebuild pipeline $SEMAPHORE_PIPELINE_ID'
-          - else
-          - '  echo "Pipeline result is not ''failed''. Skipping commands."'
-          - fi
+          - |
+            if [ "$SEMAPHORE_PIPELINE_ID" = "failed" ]; then
+              curl https://storage.googleapis.com/sem-cli-releases/get.sh | bash
+              sem connect semaphore-demo-flow.semaphoreci.com $API_TOKEN
+              sem rebuild pipeline $SEMAPHORE_PIPELINE_ID
+            else
+              echo "Pipeline result is not 'failed'. Skipping commands."
+            fi
