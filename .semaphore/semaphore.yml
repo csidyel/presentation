@@ -5,17 +5,38 @@ agent:
     type: f1-standard-2
     os_image: ubuntu2004
 blocks:
-  - name: Frontend Cache (test)
+  - name: Rebuild block
     task:
       jobs:
-        - name: Build Ember Cache
+        - name: test usecase
           commands:
-            - sleep 30
             - |
-              if (( RANDOM % 2 == 0 )); then
-                echo "Command succeeded";
-              else
-                echo "Command failed";
-                return 1;
+            if (( RANDOM % 2 == 0 )); then
+              echo "Command succeeded";
+            else
+              echo "Command failed";
+              return 1;
               fi
+      secrets:
+        - name: API_TOKEN
+      epilogue:
+        always:
+          commands:
+            - |
+              if [ "$SEMAPHORE_PIPELINE_RESULT" = "failed" ]; then
+                curl https://storage.googleapis.com/sem-cli-releases/get.sh | bash
+                sem connect semaphore-demo-flow.semaphoreci.com $API_TOKEN
+                echo $SEMAPHORE_PIPELINE_ID
+                sem rebuild pipeline $SEMAPHORE_PIPELINE_ID
+              else
+                echo "Pipeline result is not 'failed'. Skipping commands."
+              fi
+    dependencies:
+      - 'Block #1'
+  - name: 'Block #1'
     dependencies: []
+    task:
+      jobs:
+        - name: 'Job #1'
+          commands:
+            - echo "run"
