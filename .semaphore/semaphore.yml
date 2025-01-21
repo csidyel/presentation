@@ -10,7 +10,7 @@ blocks:
       jobs:
         - name: Build Ember Cache
           commands:
-            - sleep 30
+            - go install gotest.tools/gotestsum@latest
     dependencies: []
   - name: Frontend Tests
     dependencies:
