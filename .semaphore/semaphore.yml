@@ -1,37 +1,18 @@
 version: v1.0
-name: CI Pipeline
+name: Java Spring example CI pipeline on Semaphore
 agent:
   machine:
-    type: f1-standard-2
+    type: e1-standard-2
     os_image: ubuntu2004
+  container:
+    main: 'registry.semaphoreci.com/java:17'
 blocks:
-  - name: Frontend Cache (test)
+  - name: Build
     task:
+      env_vars:
+        - name: MAVEN_OPTS
+          value: '-Dmaven.repo.local=.m2'
       jobs:
-        - name: Build Ember Cache
+        - name: Build
           commands:
-            - go install gotest.tools/gotestsum@latest
-    dependencies: []
-  - name: Frontend Tests
-    dependencies:
-      - Frontend Cache (test)
-    task:
-      jobs:
-        - name: 'Frontend '
-          commands:
-            - sleep $((RANDOM % 111 + 90))
-          parallelism: 5
-  - name: Rails Tests
-    dependencies:
-      - Frontend Cache (test)
-    task:
-      jobs:
-        - name: Rails
-          commands:
-            - sleep $((RANDOM % 111 + 90))
-          parallelism: 5
-promotions:
-  - name: Promotion 1
-    pipeline_file: pipeline_4.yml
-    auto_promote:
-      when: result = 'passed'
+            - sem-version java 17
