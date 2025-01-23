@@ -4,8 +4,9 @@ agent:
   machine:
     type: e1-standard-2
     os_image: ubuntu2004
-  container:
-    main: 'registry.semaphoreci.com/java:17'
+  containers:
+    - name: main
+      image: 'registry.semaphoreci.com/java:17'
 blocks:
   - name: Build
     task:
