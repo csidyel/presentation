@@ -6,7 +6,7 @@ agent:
     os_image: ubuntu2004
   containers:
     - name: main
-      image: 'registry.semaphoreci.com/java:17'
+      image: 'registry.semaphoreci.com/openjdk:17'
 blocks:
   - name: Build
     task:
