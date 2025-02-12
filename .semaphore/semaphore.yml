@@ -16,4 +16,4 @@ blocks:
       jobs:
         - name: Build
           commands:
-            - sem-version java 17
+            - echo "test"
