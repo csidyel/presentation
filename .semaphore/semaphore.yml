@@ -24,7 +24,7 @@ promotions:
           options: []
           default_value: staging
           description: ''
-          name: environment
+          name: staging
   - name: Promotion 2
     pipeline_file: pipeline_7.yml
     deployment_target: prod
@@ -41,4 +41,4 @@ promotions:
           options: []
           default_value: Test-2
           description: ''
-          name: environment
+          name: Test-2
