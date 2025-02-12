@@ -1,18 +1,13 @@
 version: v1.0
-name: Java Spring example CI pipeline on Semaphore
+name: Example
 agent:
   machine:
-    type: e1-standard-2
-    os_image: ubuntu2004
-  containers:
-    - name: main
-      image: 'registry.semaphoreci.com/openjdk:17'
+    type: f1-standard-2
+    os_image: ubuntu2204
 blocks:
   - name: Build
     task:
-      env_vars:
-        - name: MAVEN_OPTS
-          value: '-Dmaven.repo.local=.m2'
+      env_vars: []
       jobs:
         - name: Build
           commands:
