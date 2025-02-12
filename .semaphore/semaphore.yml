@@ -37,7 +37,7 @@ promotions:
           default_value: Test-2
           description: ''
           name: Test-2
-  - name: Promotion 3
+  - name: Promotion 2
     pipeline_file: pipeline_8.yml
     deployment_target: staging
     auto_promote:
