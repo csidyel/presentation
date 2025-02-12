@@ -18,8 +18,27 @@ promotions:
     deployment_target: staging
     auto_promote:
       when: branch = 'master' AND result = 'passed'
+    parameters:
+      env_vars:
+        - required: true
+          options: []
+          default_value: staging
+          description: ''
+          name: environment
   - name: Promotion 2
     pipeline_file: pipeline_7.yml
     deployment_target: prod
     auto_promote:
       when: branch = 'master' AND result = 'passed'
+  - name: Promotion 3
+    pipeline_file: pipeline_8.yml
+    deployment_target: staging
+    auto_promote:
+      when: branch = 'master' AND result = 'passed'
+    parameters:
+      env_vars:
+        - required: true
+          options: []
+          default_value: Test-2
+          description: ''
+          name: environment
