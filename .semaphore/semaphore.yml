@@ -14,9 +14,6 @@ global_job_config:
   prologue:
     commands:
       - checkout
-  env_vars:
-    - name: PATH
-      value: '$HOME/.local/bin:$PATH'
 blocks:
   - name: Setup Dependencies
     dependencies: []
@@ -25,6 +22,7 @@ blocks:
         - name: Set up environment and install dependencies
           commands:
             - echo "Setting up Python environment and caching dependencies..."
+            - 'export PATH="$HOME/.local/bin:$PATH"'
             - mkdir -p .pip_cache
             - cache restore
             - |
@@ -42,6 +40,7 @@ blocks:
         - name: Lint code with flake8
           commands:
             - echo "Running flake8 lint..."
+            - 'export PATH="$HOME/.local/bin:$PATH"'
             - mkdir -p .pip_cache
             - cache restore
             - 'pip install --user flake8 || echo "flake8 not installed, skipping lint."'
@@ -49,6 +48,7 @@ blocks:
         - name: Security scan with bandit
           commands:
             - echo "Running Bandit security scan..."
+            - 'export PATH="$HOME/.local/bin:$PATH"'
             - mkdir -p .pip_cache
             - cache restore
             - 'pip install --user bandit || echo "bandit not installed, skipping security scan."'
@@ -61,6 +61,7 @@ blocks:
         - name: Run unit tests
           commands:
             - echo "Running unit tests with pytest..."
+            - 'export PATH="$HOME/.local/bin:$PATH"'
             - mkdir -p .pip_cache
             - cache restore
             - 'pip install --user pytest || echo "pytest not installed, attempting to continue..."'
@@ -77,6 +78,7 @@ blocks:
         - name: Run integration tests
           commands:
             - echo "Running integration tests with pytest..."
+            - 'export PATH="$HOME/.local/bin:$PATH"'
             - mkdir -p .pip_cache
             - cache restore
             - 'pip install --user pytest || echo "pytest not installed, attempting to continue..."'
