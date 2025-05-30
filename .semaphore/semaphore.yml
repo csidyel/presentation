@@ -61,8 +61,8 @@ blocks:
         - name: Run unit tests
           commands:
             - echo "Running unit tests with pytest..."
-            - 'export PATH="$HOME/.local/bin:$PATH"'
             - sem-version python $PYTHON_VERSION
+            - 'export PATH="$HOME/.local/bin:$PATH"'
             - mkdir -p .pip_cache
             - cache restore
             - 'pip install --user pytest || echo "pytest not installed, attempting to continue..."'
@@ -85,8 +85,8 @@ blocks:
         - name: Run integration tests
           commands:
             - echo "Running integration tests with pytest..."
-            - 'export PATH="$HOME/.local/bin:$PATH"'
             - sem-version python $PYTHON_VERSION
+            - 'export PATH="$HOME/.local/bin:$PATH"'
             - mkdir -p .pip_cache
             - cache restore
             - 'pip install --user pytest || echo "pytest not installed, attempting to continue..."'
