@@ -65,7 +65,6 @@ blocks:
             - 'export PATH="$HOME/.local/bin:$PATH"'
             - mkdir -p .pip_cache
             - cache restore
-            - '#pip install --user pytest || echo "pytest not installed, attempting to continue..."'
             - 'pytest --maxfail=1 --disable-warnings -q --junitxml=junit_unit.xml tests || echo "No unit tests found, skipping."'
           matrix:
             - env_var: PYTHON_VERSION
@@ -89,7 +88,6 @@ blocks:
             - 'export PATH="$HOME/.local/bin:$PATH"'
             - mkdir -p .pip_cache
             - cache restore
-            - '#pip install --user pytest || echo "pytest not installed, attempting to continue..."'
             - 'pytest --maxfail=1 --disable-warnings -q --junitxml=junit_integration.xml tests/integration || echo "No integration tests found, skipping."'
           matrix:
             - env_var: PYTHON_VERSION
