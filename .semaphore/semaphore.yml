@@ -10,6 +10,13 @@ auto_cancel:
 fail_fast:
   cancel:
     when: branch != 'main'
+global_job_config:
+  prologue:
+    commands:
+      - checkout
+  env_vars:
+    - name: PATH
+      value: '$HOME/.local/bin:$PATH'
 blocks:
   - name: Setup Dependencies
     dependencies: []
@@ -18,8 +25,6 @@ blocks:
         - name: Set up environment and install dependencies
           commands:
             - echo "Setting up Python environment and caching dependencies..."
-            - 'export PATH=$HOME/.local/bin:$PATH'
-            - checkout
             - mkdir -p .pip_cache
             - cache restore
             - |
@@ -37,18 +42,16 @@ blocks:
         - name: Lint code with flake8
           commands:
             - echo "Running flake8 lint..."
-            - checkout
             - mkdir -p .pip_cache
             - cache restore
-            - 'pip install flake8 || echo "flake8 not installed, skipping lint."'
+            - 'pip install --user flake8 || echo "flake8 not installed, skipping lint."'
             - flake8 . || echo "flake8 found issues."
         - name: Security scan with bandit
           commands:
             - echo "Running Bandit security scan..."
-            - checkout
             - mkdir -p .pip_cache
             - cache restore
-            - 'pip install bandit || echo "bandit not installed, skipping security scan."'
+            - 'pip install --user bandit || echo "bandit not installed, skipping security scan."'
             - bandit -r . -ll || echo "Bandit found security issues."
   - name: Unit Tests
     dependencies:
@@ -58,10 +61,9 @@ blocks:
         - name: Run unit tests
           commands:
             - echo "Running unit tests with pytest..."
-            - checkout
             - mkdir -p .pip_cache
             - cache restore
-            - 'pip install pytest || echo "pytest not installed, attempting to continue..."'
+            - 'pip install --user pytest || echo "pytest not installed, attempting to continue..."'
             - 'pytest --maxfail=1 --disable-warnings -q --junitxml=junit_unit.xml tests || echo "No unit tests found, skipping."'
       epilogue:
         always:
@@ -75,10 +77,9 @@ blocks:
         - name: Run integration tests
           commands:
             - echo "Running integration tests with pytest..."
-            - checkout
             - mkdir -p .pip_cache
             - cache restore
-            - 'pip install pytest || echo "pytest not installed, attempting to continue..."'
+            - 'pip install --user pytest || echo "pytest not installed, attempting to continue..."'
             - 'pytest --maxfail=1 --disable-warnings -q --junitxml=junit_integration.xml tests/integration || echo "No integration tests found, skipping."'
       epilogue:
         always:
@@ -93,7 +94,6 @@ blocks:
         - name: Build Docker image
           commands:
             - echo "Building Docker image..."
-            - checkout
             - |
               if [ -f Dockerfile ]; then
                 docker build -t my-python-app:${SEMAPHORE_GIT_BRANCH:-latest} .
