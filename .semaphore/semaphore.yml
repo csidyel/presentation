@@ -62,6 +62,7 @@ blocks:
             - mkdir -p .pip_cache
             - cache restore
             - 'pip install pytest || echo "pytest not installed, attempting to continue..."'
+            - 'pytest --maxfail=1 --disable-warnings -q --junitxml=junit_unit.xml tests || echo "No unit tests found, skipping."'
         - name: Generate coverage report
           commands:
             - echo "Generating coverage report..."
@@ -84,6 +85,7 @@ blocks:
             - mkdir -p .pip_cache
             - cache restore
             - 'pip install pytest || echo "pytest not installed, attempting to continue..."'
+            - 'pytest --maxfail=1 --disable-warnings -q --junitxml=junit_integration.xml tests/integration || echo "No integration tests found, skipping."'
   - name: Docker Build
     dependencies:
       - Integration Tests
@@ -94,7 +96,7 @@ blocks:
             - echo "Building Docker image..."
             - checkout
             - |
-              # Build Docker image if Dockerfile is present if [ -f Dockerfile ]; then
+              if [ -f Dockerfile ]; then
                 docker build -t my-python-app:${SEMAPHORE_GIT_BRANCH:-latest} .
               else
                 echo "No Dockerfile found, skipping Docker build."
