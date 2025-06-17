@@ -1,127 +1,111 @@
 version: v1.0
-name: "\U0001F40D Python CI/CD Pipeline"
+name: "\U0001F48E Ruby CI Pipeline"
 agent:
   machine:
     type: f1-standard-2
     os_image: ubuntu2204
-auto_cancel:
-  queued:
-    when: 'true'
+  containers:
+    - name: main
+      image: 'registry.semaphoreci.com/ruby:3.2.2-node-browsers'
+    - name: postgres
+      image: 'registry.semaphoreci.com/postgres:17'
+    - name: redis
+      image: 'registry.semaphoreci.com/redis:7.0'
 fail_fast:
-  cancel:
+  stop:
     when: branch != 'main'
+auto_cancel:
+  running:
+    when: branch != 'main'
+  queued:
+    when: branch = 'main'
 global_job_config:
   prologue:
     commands:
       - checkout
+      - cache restore
 blocks:
-  - name: "\U0001F4E6 Setup Dependencies"
-    dependencies: []
+  - name: "\U0001F6E0 Setup & Cache"
     task:
       jobs:
-        - name: "\U0001F4E6 Install dependencies"
+        - name: Install Gems & JS deps
           commands:
-            - echo "Setting up Python environment and caching dependencies…"
-            - 'export PATH="$HOME/.local/bin:$PATH"'
-            - mkdir -p .pip_cache
-            - cache restore
-            - |
-              if [ -f requirements.txt ]; then
-                pip install --user --cache-dir .pip_cache -r requirements.txt
-              else
-                echo "No requirements.txt found, skipping installation."
-              fi
+            - yarn install --frozen-lockfile
+            - bundle install --deployment --path vendor/bundle
+            - gem install --no-document semaphore_test_boosters
             - cache store
-  - name: "\U0001F50D Lint"
-    dependencies:
-      - "\U0001F4E6 Setup Dependencies"
+    dependencies: []
+  - name: "\U0001F5BC️ Webpacker Build"
     task:
       jobs:
-        - name: "\U0001F50D flake8 lint"
+        - name: Compile Assets
           commands:
-            - echo "Running flake8 lint…"
-            - 'export PATH="$HOME/.local/bin:$PATH"'
-            - mkdir -p .pip_cache
-            - cache restore
-            - 'pip install --user flake8 || echo "flake8 not installed, skipping lint."'
-            - flake8 . || echo "flake8 found issues."
-  - name: "\U0001F9EA Unit Tests"
+            - cache restore webpacker-assets
+            - 'bundle exec rake webpacker:compile'
+            - cache store webpacker-assets public/packs
     dependencies:
-      - "\U0001F6E1️Security Checks"
+      - "\U0001F6E0 Setup & Cache"
+  - name: "\U0001F50D ESLint & Stylelint"
     task:
       jobs:
-        - name: "\U0001F9EA pytest unit"
+        - name: JS / CSS Lint
           commands:
-            - echo "Running unit tests with pytest…"
-            - sem-version python $PYTHON_VERSION
-            - 'export PATH="$HOME/.local/bin:$PATH"'
-            - mkdir -p .pip_cache
-            - cache restore
-            - 'pytest --maxfail=1 --disable-warnings -q --junitxml=junit_unit.xml tests || echo "No unit tests found, skipping."'
-          matrix:
-            - env_var: PYTHON_VERSION
-              values:
-                - '3.10'
-                - '3.11'
-                - '3.12'
+            - yarn run eslint .
+            - yarn run stylelint '**/*.scss'
+    dependencies:
+      - "\U0001F5BC️ Webpacker Build"
+  - name: "\U0001F9F9 RuboCop"
+    task:
+      jobs:
+        - name: Ruby Style Check
+          commands:
+            - bundle exec rubocop
+    dependencies:
+      - "\U0001F6E0 Setup & Cache"
+  - name: "\U0001F6E1️ Brakeman"
+    task:
+      jobs:
+        - name: Static Analysis
+          commands:
+            - bundle exec brakeman --force
+    dependencies:
+      - "\U0001F6E0 Setup & Cache"
+  - name: "\U0001F6E1️ Bundler Audit"
+    task:
+      jobs:
+        - name: Gem CVE Check
+          commands:
+            - bundle exec bundle-audit check --update
+    dependencies:
+      - "\U0001F6E0 Setup & Cache"
+  - name: "\U0001F6A6 RSpec Suite"
+    task:
+      env_vars:
+        - name: RAILS_ENV
+          value: test
+        - name: PGHOST
+          value: 127.0.0.1
+        - name: PGUSER
+          value: postgres
+      jobs:
+        - name: "\U0001F7E2 RSpec Tests"
+          parallelism: 5
+          commands:
+            - cache restore webpacker-assets
+            - 'bundle exec rake db:setup'
+            - rspec_booster --job "$SEMAPHORE_JOB_INDEX/$SEMAPHORE_JOB_COUNT" \ --format RspecJunitFormatter --out report.xml --format documentation
       epilogue:
         always:
           commands:
-            - test-results publish junit_unit.xml || echo "No unit test results to publish."
-  - name: "\U0001F517 Integration Tests"
+            - '[[ -f report.xml ]] && test-results publish report.xml'
     dependencies:
-      - "\U0001F6E1️Security Checks"
-    task:
-      jobs:
-        - name: "\U0001F517 pytest integration"
-          commands:
-            - echo "Running integration tests with pytest…"
-            - sem-version python $PYTHON_VERSION
-            - 'export PATH="$HOME/.local/bin:$PATH"'
-            - mkdir -p .pip_cache
-            - cache restore
-            - 'pytest --maxfail=1 --disable-warnings -q --junitxml=junit_integration.xml tests/integration || echo "No integration tests found, skipping."'
-          matrix:
-            - env_var: PYTHON_VERSION
-              values:
-                - '3.10'
-                - '3.11'
-                - '3.12'
-      epilogue:
-        always:
-          commands:
-            - test-results publish junit_integration.xml || echo "No integration test results to publish."
-  - name: "\U0001F433 Docker Build"
-    dependencies:
-      - "\U0001F517 Integration Tests"
-      - "\U0001F9EA Unit Tests"
-    task:
-      jobs:
-        - name: "\U0001F433 Build image"
-          commands:
-            - echo "Building Docker image…"
-            - |
-              if [ -f Dockerfile ]; then
-                docker build -t my-python-app:${SEMAPHORE_GIT_BRANCH:-latest} .
-              else
-                echo "No Dockerfile found, skipping Docker build."
-              fi
-  - name: "\U0001F6E1️Security Checks"
-    dependencies:
-      - "\U0001F4E6 Setup Dependencies"
-    task:
-      jobs:
-        - name: "\U0001F6E1️ Bandit scan"
-          commands:
-            - echo "Running Bandit security scan…"
-            - 'export PATH="$HOME/.local/bin:$PATH"'
-            - mkdir -p .pip_cache
-            - cache restore
-            - 'pip install --user bandit || echo "bandit not installed, skipping security scan."'
-            - bandit -r . -ll || echo "Bandit found security issues."
+      - "\U0001F9F9 RuboCop"
+      - "\U0001F6E1️ Brakeman"
+      - "\U0001F6E1️ Bundler Audit"
+      - "\U0001F5BC️ Webpacker Build"
 after_pipeline:
   task:
     jobs:
-      - name: "\U0001F4CA Merge reports"
+      - name: "\U0001F4CA Merge Results"
         commands:
           - test-results gen-pipeline-report
