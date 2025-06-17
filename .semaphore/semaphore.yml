@@ -24,14 +24,14 @@ global_job_config:
     commands:
       - checkout
       - cache restore
-      - corepack enable
 blocks:
   - name: "\U0001F6E0 Setup & Cache"
     task:
       jobs:
         - name: Install Gems & JS deps
           commands:
-            - corepack prepare yarn@stable --activate
+            - 'curl -o- -L https://yarnpkg.com/install.sh | bash -s -- --version 1.22.19'
+            - 'export PATH="$HOME/.yarn/bin:$PATH"'
             - yarn install --frozen-lockfile
             - bundle install --deployment --path vendor/bundle
             - gem install --no-document semaphore_test_boosters
@@ -52,7 +52,8 @@ blocks:
       jobs:
         - name: JS / CSS Lint
           commands:
-            - corepack prepare yarn@stable --activate
+            - 'curl -o- -L https://yarnpkg.com/install.sh | bash -s -- --version 1.22.19'
+            - 'export PATH="$HOME/.yarn/bin:$PATH"'
             - yarn run eslint .
             - yarn run stylelint '**/*.scss'
     dependencies:
