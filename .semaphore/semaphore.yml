@@ -30,6 +30,7 @@ blocks:
       jobs:
         - name: Install Gems & JS deps
           commands:
+            - npm install --global yarn
             - yarn install --frozen-lockfile
             - bundle install --deployment --path vendor/bundle
             - gem install --no-document semaphore_test_boosters
@@ -50,6 +51,7 @@ blocks:
       jobs:
         - name: JS / CSS Lint
           commands:
+            - npm install --global yarn
             - yarn run eslint .
             - yarn run stylelint '**/*.scss'
     dependencies:
