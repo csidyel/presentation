@@ -4,6 +4,11 @@ agent:
   machine:
     type: e1-standard-2
     os_image: ubuntu2004
+  containers:
+    - name: main
+      image: 'registry.semaphoreci.com/elixir:1.16'
+    - name: postgres
+      image: 'registry.semaphoreci.com/postgres:17'
 fail_fast:
   stop:
     when: branch != 'main'
@@ -16,8 +21,6 @@ global_job_config:
   prologue:
     commands:
       - checkout
-      - sem-version elixir 1.16
-      - sem-version erlang 25.3
       - mix local.hex   --force
       - mix local.rebar --force
       - cache restore
@@ -88,14 +91,12 @@ blocks:
             - name: MIX_TEST_PARTITION
               value: '1'
           commands:
-            - sem-service start postgres 17
             - mix test --color
         - name: "\U0001F9EA Tests-2"
           env_vars:
             - name: MIX_TEST_PARTITION
               value: '2'
           commands:
-            - sem-service start postgres 17
             - mix test --color
   - name: "\U0001F680 Docker Deploy"
     dependencies:
