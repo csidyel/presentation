@@ -107,10 +107,10 @@ blocks:
     run:
       when: branch = 'main'
     task:
+      secrets:
+        - name: dockerhub
       jobs:
         - name: "\U0001F433 Build & Push"
-          secrets:
-            - name: dockerhub
           commands:
             - echo "$DOCKER_PASSWORD" | docker login --username "$DOCKER_USERNAME" --password-stdin
             - 'docker build -t myapp:${SEMAPHORE_GIT_SHA} .'
