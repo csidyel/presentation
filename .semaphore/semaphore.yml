@@ -1,16 +1,9 @@
 version: v1.0
-name: "\U0001F48E Ruby CI Pipeline"
+name: "\U0001F4A7 Elixir CI Pipeline"
 agent:
   machine:
     type: f1-standard-2
-    os_image: ubuntu2204
-  containers:
-    - name: main
-      image: 'registry.semaphoreci.com/ruby:3.2.2-node-browsers'
-    - name: postgres
-      image: 'registry.semaphoreci.com/postgres:17'
-    - name: redis
-      image: 'registry.semaphoreci.com/redis:7.0'
+    os_image: ubuntu2004
 fail_fast:
   stop:
     when: branch != 'main'
@@ -23,93 +16,110 @@ global_job_config:
   prologue:
     commands:
       - checkout
+      - sem-version elixir 1.16
+      - sem-version erlang 25.3
+      - mix local.hex   --force
+      - mix local.rebar --force
       - cache restore
 blocks:
-  - name: "\U0001F6E0 Setup & Cache"
+  - name: "\U0001F4E6 Install & Build"
     task:
       jobs:
-        - name: Install Gems & JS deps
+        - name: ⚙️ Compile
           commands:
-            - 'curl -o- -L https://yarnpkg.com/install.sh | bash -s -- --version 1.22.19'
-            - 'export PATH="$HOME/.yarn/bin:$PATH"'
-            - yarn install --frozen-lockfile
-            - bundle install --deployment --path vendor/bundle
-            - gem install --no-document semaphore_test_boosters
+            - mix deps.get
+            - mix compile
             - cache store
-    dependencies: []
-  - name: "\U0001F5BC️ Webpacker Build"
-    task:
-      jobs:
-        - name: Compile Assets
-          commands:
-            - cache restore webpacker-assets
-            - 'bundle exec rake webpacker:compile'
-            - cache store webpacker-assets public/packs
+  - name: "\U0001F58B Format"
     dependencies:
-      - "\U0001F6E0 Setup & Cache"
-  - name: "\U0001F50D ESLint & Stylelint"
+      - "\U0001F4E6 Install & Build"
     task:
       jobs:
-        - name: JS / CSS Lint
+        - name: "\U0001F3A8 mix format"
           commands:
-            - 'curl -o- -L https://yarnpkg.com/install.sh | bash -s -- --version 1.22.19'
-            - 'export PATH="$HOME/.yarn/bin:$PATH"'
-            - yarn run eslint .
-            - yarn run stylelint '**/*.scss'
+            - mix format --check-formatted
+  - name: "\U0001F50E Credo"
     dependencies:
-      - "\U0001F5BC️ Webpacker Build"
-  - name: "\U0001F9F9 RuboCop"
+      - "\U0001F4E6 Install & Build"
     task:
       jobs:
-        - name: Ruby Style Check
+        - name: "\U0001F50D mix credo"
           commands:
-            - bundle exec rubocop
+            - mix credo --strict
+  - name: "\U0001F510 Sobelow"
     dependencies:
-      - "\U0001F6E0 Setup & Cache"
-  - name: "\U0001F6E1️ Brakeman"
+      - "\U0001F4E6 Install & Build"
     task:
       jobs:
-        - name: Static Analysis
+        - name: "\U0001F6E1️ mix sobelow"
           commands:
-            - bundle exec brakeman --force
+            - mix sobelow --exit
+  - name: "\U0001F6E1 Deps Audit"
     dependencies:
-      - "\U0001F6E0 Setup & Cache"
-  - name: "\U0001F6E1️ Bundler Audit"
+      - "\U0001F4E6 Install & Build"
     task:
       jobs:
-        - name: Gem CVE Check
+        - name: "\U0001F6E1️ mix deps.audit"
           commands:
-            - bundle exec bundle-audit check --update
+            - mix deps.audit
+  - name: "\U0001F4CA Dialyzer"
     dependencies:
-      - "\U0001F6E0 Setup & Cache"
-  - name: "\U0001F6A6 RSpec Suite"
+      - "\U0001F4E6 Install & Build"
     task:
-      env_vars:
-        - name: RAILS_ENV
-          value: test
-        - name: PGHOST
-          value: 127.0.0.1
-        - name: PGUSER
-          value: postgres
       jobs:
-        - name: "\U0001F7E2 RSpec Tests"
-          parallelism: 5
+        - name: "\U0001F9E0 mix dialyzer"
+          env_vars:
+            - name: MIX_ENV
+              value: test
           commands:
-            - cache restore webpacker-assets
-            - 'bundle exec rake db:setup'
-            - rspec_booster --job "$SEMAPHORE_JOB_INDEX/$SEMAPHORE_JOB_COUNT" \ --format RspecJunitFormatter --out report.xml --format documentation
+            - mix dialyzer --halt-exit-status
+  - name: "\U0001F9EA Tests"
+    dependencies:
+      - "\U0001F4E6 Install & Build"
+    task:
       epilogue:
         always:
           commands:
-            - '[[ -f report.xml ]] && test-results publish report.xml'
+            - '[ -f report.xml ] && test-results publish report.xml'
+      jobs:
+        - name: "\U0001F9EA Tests-1"
+          env_vars:
+            - name: MIX_TEST_PARTITION
+              value: '1'
+          commands:
+            - sem-service start postgres 17
+            - mix test --color
+        - name: "\U0001F9EA Tests-2"
+          env_vars:
+            - name: MIX_TEST_PARTITION
+              value: '2'
+          commands:
+            - sem-service start postgres 17
+            - mix test --color
+  - name: "\U0001F680 Docker Deploy"
     dependencies:
-      - "\U0001F9F9 RuboCop"
-      - "\U0001F6E1️ Brakeman"
-      - "\U0001F6E1️ Bundler Audit"
-      - "\U0001F5BC️ Webpacker Build"
+      - "\U0001F58B Format"
+      - "\U0001F50E Credo"
+      - "\U0001F510 Sobelow"
+      - "\U0001F6E1 Deps Audit"
+      - "\U0001F4CA Dialyzer"
+      - "\U0001F9EA Tests"
+    run:
+      when: branch = 'main'
+    task:
+      jobs:
+        - name: "\U0001F433 Build & Push"
+          secrets:
+            - name: dockerhub
+          commands:
+            - echo "$DOCKER_PASSWORD" | docker login --username "$DOCKER_USERNAME" --password-stdin
+            - 'docker build -t myapp:${SEMAPHORE_GIT_SHA} .'
+            - 'docker tag  myapp:${SEMAPHORE_GIT_SHA} myapp:latest'
+            - 'docker push myapp:${SEMAPHORE_GIT_SHA}'
+            - 'docker push myapp:latest'
 after_pipeline:
   task:
     jobs:
-      - name: "\U0001F4CA Merge Results"
+      - name: "\U0001F4CA Merge Reports"
         commands:
           - test-results gen-pipeline-report
