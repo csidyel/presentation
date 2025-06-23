@@ -68,7 +68,7 @@ blocks:
       epilogue:
         always:
           commands:
-            - '[[ -f report.xml ]] && test-results publish report.xml'
+            - test-results publish report.xml
   - name: "\U0001F3D7️ Build Artifact"
     dependencies:
       - ✅ Testing
