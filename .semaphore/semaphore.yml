@@ -1,9 +1,9 @@
 version: v1.0
-name: "\U0001F4A7 Elixir CI Pipeline"
+name: "\U0001F680 Go Project CI/CD Pipeline"
 agent:
   machine:
-    type: e1-standard-2
-    os_image: ubuntu2004
+    type: f1-standard-2
+    os_image: ubuntu2204
 fail_fast:
   stop:
     when: branch != 'main'
@@ -11,116 +11,83 @@ auto_cancel:
   running:
     when: branch != 'main'
   queued:
-    when: branch = 'main'
+    when: branch != 'main'
 global_job_config:
   prologue:
     commands:
       - checkout
-      - sem-version elixir 1.16
-      - sem-version erlang 26.2
-      - mix local.hex   --force
-      - mix local.rebar --force
+      - sem-version go 1.22
       - cache restore
 blocks:
-  - name: "\U0001F4E6 Install & Build"
+  - name: "\U0001F6E0️ Setup & Dependency Caching"
     dependencies: []
     task:
       jobs:
-        - name: ⚙️ Compile
+        - name: Install dependencies
           commands:
-            - mix deps.get
-            - mix compile
+            - go mod download
             - cache store
-  - name: "\U0001F58B Format"
+  - name: "\U0001F50D Code Quality Checks"
     dependencies:
-      - "\U0001F4E6 Install & Build"
+      - "\U0001F6E0️ Setup & Dependency Caching"
     task:
       jobs:
-        - name: "\U0001F3A8 mix format"
+        - name: go fmt check
           commands:
-            - mix format --check-formatted
-  - name: "\U0001F50E Credo"
+            - go fmt ./...
+        - name: golangci-lint
+          commands:
+            - go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+            - golangci-lint run ./...
+        - name: go vet
+          commands:
+            - go vet ./...
+        - name: staticcheck
+          commands:
+            - go install honnef.co/go/tools/cmd/staticcheck@latest
+            - staticcheck ./...
+  - name: "\U0001F512 Security Scanning"
     dependencies:
-      - "\U0001F4E6 Install & Build"
+      - "\U0001F6E0️ Setup & Dependency Caching"
     task:
       jobs:
-        - name: "\U0001F50D mix credo"
+        - name: govulncheck
           commands:
-            - mix credo --strict
-  - name: "\U0001F510 Sobelow"
+            - go install golang.org/x/vuln/cmd/govulncheck@latest
+            - govulncheck ./...
+  - name: ✅ Testing
     dependencies:
-      - "\U0001F4E6 Install & Build"
+      - "\U0001F512 Security Scanning"
     task:
       jobs:
-        - name: "\U0001F6E1️ mix sobelow"
+        - name: Run Go Tests
+          parallelism: 4
           commands:
-            - mix sobelow --exit
-  - name: "\U0001F6E1 Deps Audit"
+            - go install gotest.tools/gotestsum@latest
+            - packages=$(go list ./... | awk "NR % $SEMAPHORE_JOB_TOTAL == $SEMAPHORE_JOB_INDEX") gotestsum --junitfile tests.xml $packages
+          epilogue:
+            always:
+              - test-results publish tests.xml
+  - name: "\U0001F3D7️ Build Artifact"
     dependencies:
-      - "\U0001F4E6 Install & Build"
+      - ✅ Testing
     task:
       jobs:
-        - name: "\U0001F6E1️ mix deps.audit"
+        - name: Compile Go Binary
           commands:
-            - mix deps.audit
-  - name: "\U0001F4CA Dialyzer"
+            - go build -o app
+  - name: "\U0001F433 Docker Image Build"
     dependencies:
-      - "\U0001F4E6 Install & Build"
+      - "\U0001F3D7️ Build Artifact"
     task:
       jobs:
-        - name: "\U0001F9E0 mix dialyzer"
-          env_vars:
-            - name: MIX_ENV
-              value: test
+        - name: Build & Tag Docker Image
           commands:
-            - mix dialyzer --halt-exit-status
-  - name: "\U0001F9EA Tests"
-    dependencies:
-      - "\U0001F4E6 Install & Build"
-    task:
-      epilogue:
-        always:
-          commands:
-            - '[ -f report.xml ] && test-results publish report.xml'
-      jobs:
-        - name: "\U0001F9EA Tests-1"
-          env_vars:
-            - name: MIX_TEST_PARTITION
-              value: '1'
-          commands:
-            - sem-service start postgres 17
-            - mix test --color
-        - name: "\U0001F9EA Tests-2"
-          env_vars:
-            - name: MIX_TEST_PARTITION
-              value: '2'
-          commands:
-            - sem-service start postgres 17
-            - mix test --color
-  - name: "\U0001F680 Docker Deploy"
-    dependencies:
-      - "\U0001F58B Format"
-      - "\U0001F50E Credo"
-      - "\U0001F510 Sobelow"
-      - "\U0001F6E1 Deps Audit"
-      - "\U0001F4CA Dialyzer"
-      - "\U0001F9EA Tests"
-    run:
-      when: branch = 'main'
-    task:
-      secrets:
-        - name: dockerhub
-      jobs:
-        - name: "\U0001F433 Build & Push"
-          commands:
-            - echo "$DOCKER_PASSWORD" | docker login --username "$DOCKER_USERNAME" --password-stdin
-            - 'docker build -t myapp:${SEMAPHORE_GIT_SHA} .'
-            - 'docker tag  myapp:${SEMAPHORE_GIT_SHA} myapp:latest'
-            - 'docker push myapp:${SEMAPHORE_GIT_SHA}'
-            - 'docker push myapp:latest'
+            - 'docker build -t my-app:$SEMAPHORE_GIT_SHA .'
+            - 'docker tag my-app:$SEMAPHORE_GIT_SHA my-app:latest'
 after_pipeline:
   task:
     jobs:
-      - name: "\U0001F4CA Merge Reports"
+      - name: Publish Test Results
         commands:
           - test-results gen-pipeline-report
