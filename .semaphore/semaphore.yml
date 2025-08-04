@@ -1,9 +1,9 @@
 version: v1.0
-name: "\U0001F4AB Elixir ETL (Broadway + SQS) - SaaS VM"
+name: "\U0001F499 Flutter (VM) — Lint • Test • Web build"
 agent:
   machine:
     type: e1-standard-2
-    os_image: ubuntu2204
+    os_image: ubuntu2004
 fail_fast:
   stop:
     when: branch != 'main'
@@ -14,119 +14,62 @@ auto_cancel:
     when: branch != 'main'
 global_job_config:
   env_vars:
-    - name: ERL_AFLAGS
-      value: '-kernel shell_history enabled'
-    - name: MIX_ENV
-      value: test
+    - name: FLUTTER_HOME
+      value: $HOME/flutter
+    - name: PATH
+      value: '$HOME/.pub-cache/bin:$FLUTTER_HOME/bin:$PATH'
     - name: JUNIT_FILE
-      value: _build/test/junit-report.xml
-    - name: EXUNIT_PARTITIONS
-      value: '4'
-    - name: AWS_ENDPOINT
-      value: 'http://localhost:4566'
-    - name: AWS_REGION
-      value: us-east-1
-    - name: AWS_ACCESS_KEY_ID
-      value: test
-    - name: AWS_SECRET_ACCESS_KEY
-      value: test
+      value: test-results/junit.xml
   prologue:
     commands:
       - checkout
-      - 'cache restore elixir-deps-$(checksum mix.lock),_build,test-plt'
-      - sem-version elixir 1.16.2
-      - sem-version erlang 26.2
-      - mix local.hex --force
-      - mix local.rebar --force
-      - mix deps.get
-      - mix deps.compile
-      - cache store elixir-deps-$(checksum mix.lock) deps _build
+      - cache restore "pub-cache-$(checksum pubspec.lock)"
+      - 'git clone --depth 1 -b stable https://github.com/flutter/flutter.git "$FLUTTER_HOME"'
+      - flutter --version
+      - flutter doctor -v
+      - flutter pub get
+      - dart pub global activate junitreport
   epilogue:
     always:
       commands:
-        - artifact push job _build/test/*.xml || true
+        - '[[ -f "$JUNIT_FILE" ]] && test-results publish "$JUNIT_FILE" || true'
 blocks:
   - name: "\U0001F9F9 Quality"
     task:
       jobs:
-        - name: mix format --check
+        - name: Format
           commands:
-            - mix format --check-formatted
-        - name: Credo
+            - flutter format --set-exit-if-changed .
+        - name: Analyze
           commands:
-            - mix credo --strict
-  - name: "\U0001F6E1️ Security"
-    task:
-      jobs:
-        - name: mix audit deps
-          commands:
-            - mix deps.audit
-        - name: mix audit hex
-          commands:
-            - mix hex.audit
+            - flutter analyze .
   - name: "\U0001F9EA Tests (parallel)"
     task:
       jobs:
-        - name: Tests part 1/4
-          env_vars:
-            - name: MIX_TEST_PARTITION
-              value: '1'
+        - name: Flutter tests (sharded)
+          parallelism: 4
           commands:
-            - mix test --partitions $EXUNIT_PARTITIONS --color --trace || true
-            - test-results publish $JUNIT_FILE
-        - name: Tests part 2/4
-          env_vars:
-            - name: MIX_TEST_PARTITION
-              value: '2'
+            - mkdir -p test-results
+            - export SHARD_INDEX=$((SEMAPHORE_JOB_INDEX - 1))
+            - echo "Shard $SHARD_INDEX of $SEMAPHORE_JOB_COUNT"
+            - flutter test --machine --total-shards $SEMAPHORE_JOB_COUNT --shard-index $SHARD_INDEX | tojunit --output $JUNIT_FILE
+  - name: "\U0001F6E1️ Security (pub deps)"
+    task:
+      jobs:
+        - name: Pub outdated (informational)
           commands:
-            - mix test --partitions $EXUNIT_PARTITIONS --color --trace || true
-            - test-results publish $JUNIT_FILE
-        - name: Tests part 3/4
-          env_vars:
-            - name: MIX_TEST_PARTITION
-              value: '3'
-          commands:
-            - mix test --partitions $EXUNIT_PARTITIONS --color --trace || true
-            - test-results publish $JUNIT_FILE
-        - name: Tests part 4/4
-          env_vars:
-            - name: MIX_TEST_PARTITION
-              value: '4'
-          commands:
-            - mix test --partitions $EXUNIT_PARTITIONS --color --trace || true
-            - test-results publish $JUNIT_FILE
-  - name: "\U0001F50C Integration: Localstack SQS + Postgres"
+            - dart pub outdated || true
+  - name: "\U0001F4E6 Build Web (artifact)"
     dependencies:
       - "\U0001F9EA Tests (parallel)"
     skip:
       when: branch != 'main'
     task:
       jobs:
-        - name: Spin up services
+        - name: flutter build web
           commands:
-            - 'docker run -d --name localstack -p 4566:4566 -e SERVICES=sqs,s3 localstack/localstack:2'
-            - 'docker run -d --name pg -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=etl -p 5432:5432 postgres:15'
-            - sleep 8
-            - pip3 install --user awscli-local
-            - ~/.local/bin/awslocal --endpoint-url=$AWS_ENDPOINT sqs create-queue --queue-name etl-events
-            - export SQS_QUEUE_URL=$AWS_ENDPOINT/000000000000/etl-events
-            - export BROADWAY_SQS_QUEUE_URL=$SQS_QUEUE_URL
-            - 'export DATABASE_URL=ecto://postgres:postgres@localhost:5432/etl'
-            - mix ecto.create || true
-            - mix ecto.migrate || true
-            - mix test --only integration --color --trace || true
-            - test-results publish $JUNIT_FILE
-          secrets: []
-  - name: "\U0001F9E0 Dialyzer (optional)"
-    skip:
-      when: branch != 'main'
-    task:
-      jobs:
-        - name: Build PLT and run dialyzer
-          commands:
-            - cache restore test-plt
-            - mix dialyzer || true
-            - cache store test-plt priv/plts
+            - flutter build web --release
+            - artifact push job build/web
 after_pipeline:
   task:
     jobs:
