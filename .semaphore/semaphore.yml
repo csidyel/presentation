@@ -55,8 +55,6 @@ blocks:
         - name: Credo
           commands:
             - mix credo --strict
-      run:
-        when: 'change_in([''/lib'', ''/test'', ''/config'', ''/mix.exs'', ''/mix.lock''])'
   - name: "\U0001F6E1️ Security"
     task:
       jobs:
@@ -66,8 +64,6 @@ blocks:
         - name: mix audit hex
           commands:
             - mix hex.audit
-      run:
-        when: 'change_in([''/mix.lock''])'
   - name: "\U0001F9EA Tests (parallel)"
     task:
       jobs:
@@ -121,8 +117,6 @@ blocks:
             - mix test --only integration --color --trace || true
             - test-results publish $JUNIT_FILE
           secrets: []
-      run:
-        when: 'change_in([''/lib'', ''/config'', ''/priv/repo/migrations''])'
   - name: "\U0001F9E0 Dialyzer (optional)"
     skip:
       when: branch != 'main'
