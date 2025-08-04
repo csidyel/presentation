@@ -43,6 +43,7 @@ blocks:
         - name: Analyze
           commands:
             - flutter analyze .
+    dependencies: []
   - name: "\U0001F9EA Tests (parallel)"
     task:
       jobs:
@@ -53,12 +54,16 @@ blocks:
             - export SHARD_INDEX=$((SEMAPHORE_JOB_INDEX - 1))
             - echo "Shard $SHARD_INDEX of $SEMAPHORE_JOB_COUNT"
             - flutter test --machine --total-shards $SEMAPHORE_JOB_COUNT --shard-index $SHARD_INDEX | tojunit --output $JUNIT_FILE
+    dependencies:
+      - "\U0001F9F9 Quality"
   - name: "\U0001F6E1️ Security (pub deps)"
     task:
       jobs:
         - name: Pub outdated (informational)
           commands:
             - dart pub outdated || true
+    dependencies:
+      - "\U0001F9EA Tests (parallel)"
   - name: "\U0001F4E6 Build Web (artifact)"
     dependencies:
       - "\U0001F9EA Tests (parallel)"
