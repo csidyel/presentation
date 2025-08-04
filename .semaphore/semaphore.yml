@@ -1,9 +1,9 @@
 version: v1.0
-name: "\U0001F680 Go Project CI/CD Pipeline"
+name: "\U0001F4AB Elixir ETL (Broadway + SQS) - SaaS VM"
 agent:
   machine:
     type: e1-standard-2
-    os_image: ubuntu2004
+    os_image: ubuntu2204
 fail_fast:
   stop:
     when: branch != 'main'
@@ -13,82 +13,129 @@ auto_cancel:
   queued:
     when: branch != 'main'
 global_job_config:
+  env_vars:
+    - name: ERL_AFLAGS
+      value: '-kernel shell_history enabled'
+    - name: MIX_ENV
+      value: test
+    - name: JUNIT_FILE
+      value: _build/test/junit-report.xml
+    - name: EXUNIT_PARTITIONS
+      value: '4'
+    - name: AWS_ENDPOINT
+      value: 'http://localhost:4566'
+    - name: AWS_REGION
+      value: us-east-1
+    - name: AWS_ACCESS_KEY_ID
+      value: test
+    - name: AWS_SECRET_ACCESS_KEY
+      value: test
   prologue:
     commands:
       - checkout
-      - sem-version go 1.22
-      - cache restore
+      - 'cache restore elixir-deps-$(checksum mix.lock),_build,test-plt'
+      - sem-version elixir 1.16.2
+      - sem-version erlang 26.2
+      - mix local.hex --force
+      - mix local.rebar --force
+      - mix deps.get
+      - mix deps.compile
+      - cache store elixir-deps-$(checksum mix.lock) deps _build
+  epilogue:
+    always:
+      commands:
+        - artifact push job _build/test/*.xml || true
 blocks:
-  - name: "\U0001F6E0️ Setup & Dependency Caching"
-    dependencies: []
+  - name: "\U0001F9F9 Quality"
     task:
       jobs:
-        - name: Install dependencies
+        - name: mix format --check
           commands:
-            - go mod download
-            - cache store
-  - name: "\U0001F50D Code Quality Checks"
+            - mix format --check-formatted
+        - name: Credo
+          commands:
+            - mix credo --strict
+      run:
+        when: 'change_in([''/lib'', ''/test'', ''/config'', ''/mix.exs'', ''/mix.lock''])'
+  - name: "\U0001F6E1️ Security"
+    task:
+      jobs:
+        - name: mix audit deps
+          commands:
+            - mix deps.audit
+        - name: mix audit hex
+          commands:
+            - mix hex.audit
+      run:
+        when: 'change_in([''/mix.lock''])'
+  - name: "\U0001F9EA Tests (parallel)"
+    task:
+      jobs:
+        - name: Tests part 1/4
+          env_vars:
+            - name: MIX_TEST_PARTITION
+              value: '1'
+          commands:
+            - mix test --partitions $EXUNIT_PARTITIONS --color --trace || true
+            - test-results publish $JUNIT_FILE
+        - name: Tests part 2/4
+          env_vars:
+            - name: MIX_TEST_PARTITION
+              value: '2'
+          commands:
+            - mix test --partitions $EXUNIT_PARTITIONS --color --trace || true
+            - test-results publish $JUNIT_FILE
+        - name: Tests part 3/4
+          env_vars:
+            - name: MIX_TEST_PARTITION
+              value: '3'
+          commands:
+            - mix test --partitions $EXUNIT_PARTITIONS --color --trace || true
+            - test-results publish $JUNIT_FILE
+        - name: Tests part 4/4
+          env_vars:
+            - name: MIX_TEST_PARTITION
+              value: '4'
+          commands:
+            - mix test --partitions $EXUNIT_PARTITIONS --color --trace || true
+            - test-results publish $JUNIT_FILE
+  - name: "\U0001F50C Integration: Localstack SQS + Postgres"
     dependencies:
-      - "\U0001F6E0️ Setup & Dependency Caching"
+      - "\U0001F9EA Tests (parallel)"
+    skip:
+      when: branch != 'main'
     task:
       jobs:
-        - name: go fmt check
+        - name: Spin up services
           commands:
-            - go fmt ./...
-        - name: golangci-lint
-          commands:
-            - go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-            - golangci-lint run ./...
-        - name: go vet
-          commands:
-            - go vet ./...
-        - name: staticcheck
-          commands:
-            - go install honnef.co/go/tools/cmd/staticcheck@latest
-            - staticcheck ./...
-  - name: "\U0001F512 Security Scanning"
-    dependencies:
-      - "\U0001F6E0️ Setup & Dependency Caching"
+            - 'docker run -d --name localstack -p 4566:4566 -e SERVICES=sqs,s3 localstack/localstack:2'
+            - 'docker run -d --name pg -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=etl -p 5432:5432 postgres:15'
+            - sleep 8
+            - pip3 install --user awscli-local
+            - ~/.local/bin/awslocal --endpoint-url=$AWS_ENDPOINT sqs create-queue --queue-name etl-events
+            - export SQS_QUEUE_URL=$AWS_ENDPOINT/000000000000/etl-events
+            - export BROADWAY_SQS_QUEUE_URL=$SQS_QUEUE_URL
+            - 'export DATABASE_URL=ecto://postgres:postgres@localhost:5432/etl'
+            - mix ecto.create || true
+            - mix ecto.migrate || true
+            - mix test --only integration --color --trace || true
+            - test-results publish $JUNIT_FILE
+          secrets: []
+      run:
+        when: 'change_in([''/lib'', ''/config'', ''/priv/repo/migrations''])'
+  - name: "\U0001F9E0 Dialyzer (optional)"
+    skip:
+      when: branch != 'main'
     task:
       jobs:
-        - name: govulncheck
+        - name: Build PLT and run dialyzer
           commands:
-            - go install golang.org/x/vuln/cmd/govulncheck@latest
-            - govulncheck ./...
-  - name: ✅ Testing
-    dependencies:
-      - "\U0001F512 Security Scanning"
-    task:
-      jobs:
-        - name: Run Go Tests
-          parallelism: 4
-          commands:
-            - go install gotest.tools/gotestsum@latest
-            - packages=$(go list ./... | awk "NR % $SEMAPHORE_JOB_TOTAL == $SEMAPHORE_JOB_INDEX") gotestsum --junitfile report.xml $packages
-      epilogue:
-        always:
-          commands:
-            - test-results publish report.xml
-  - name: "\U0001F3D7️ Build Artifact"
-    dependencies:
-      - ✅ Testing
-    task:
-      jobs:
-        - name: Compile Go Binary
-          commands:
-            - go build -o app
-  - name: "\U0001F433 Docker Image Build"
-    dependencies:
-      - "\U0001F3D7️ Build Artifact"
-    task:
-      jobs:
-        - name: Build & Tag Docker Image
-          commands:
-            - 'docker build -t my-app:$SEMAPHORE_GIT_SHA .'
-            - 'docker tag my-app:$SEMAPHORE_GIT_SHA my-app:latest'
+            - cache restore test-plt
+            - mix dialyzer || true
+            - cache store test-plt priv/plts
 after_pipeline:
   task:
     jobs:
-      - name: Publish Test Results
+      - name: "\U0001F4CA Merge test reports"
         commands:
           - test-results gen-pipeline-report
