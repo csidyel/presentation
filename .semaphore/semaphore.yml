@@ -2,10 +2,8 @@ version: v1.0
 name: ☕ Java Spring CI Pipeline
 agent:
   machine:
-    type:
-      '[object Object]': null
-    os_image:
-      '[object Object]': null
+    type: e1-standard-2
+    os_image: ubuntu2004
 fail_fast:
   stop:
     when: branch != 'master'
