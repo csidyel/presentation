@@ -1,84 +1,93 @@
 version: v1.0
-name: "\U0001F499 Flutter (VM) — Lint • Test • Web build"
+name: ☕ Java Spring CI Pipeline
 agent:
   machine:
-    type: e1-standard-2
-    os_image: ubuntu2004
+    type:
+      '[object Object]': null
+    os_image:
+      '[object Object]': null
 fail_fast:
   stop:
-    when: branch != 'main'
+    when: branch != 'master'
 auto_cancel:
   running:
-    when: branch != 'main'
+    when: branch != 'master'
   queued:
-    when: branch != 'main'
+    when: branch = 'master'
 global_job_config:
-  env_vars:
-    - name: FLUTTER_HOME
-      value: $HOME/flutter
-    - name: PATH
-      value: '$HOME/.pub-cache/bin:$FLUTTER_HOME/bin:$PATH'
-    - name: JUNIT_FILE
-      value: test-results/junit.xml
   prologue:
     commands:
       - checkout
-      - cache restore "pub-cache-$(checksum pubspec.lock)"
-      - 'git clone --depth 1 -b stable https://github.com/flutter/flutter.git "$FLUTTER_HOME"'
-      - flutter --version
-      - flutter doctor -v
-      - flutter pub get
-      - dart pub global activate junitreport
-  epilogue:
-    always:
-      commands:
-        - '[[ -f "$JUNIT_FILE" ]] && test-results publish "$JUNIT_FILE" || true'
+      - sem-version java 17
+      - cache restore
 blocks:
-  - name: "\U0001F9F9 Quality"
-    task:
-      jobs:
-        - name: "\U0001F9FC Format"
-          commands:
-            - flutter format --set-exit-if-changed .
-        - name: "\U0001F50E Analyze"
-          commands:
-            - flutter analyze .
+  - name: ⚙️ Build
     dependencies: []
-  - name: "\U0001F9EA Tests (parallel)"
     task:
+      env_vars:
+        - name: MAVEN_OPTS
+          value: '-Dmaven.repo.local=.m2'
       jobs:
-        - name: "\U0001F9EA Flutter tests (sharded)"
-          parallelism: 4
+        - name: "\U0001F4E6 Compile and Package"
           commands:
-            - mkdir -p test-results
-            - export SHARD_INDEX=$((SEMAPHORE_JOB_INDEX - 1))
-            - echo "Shard $SHARD_INDEX of $SEMAPHORE_JOB_COUNT"
-            - |
-              flutter test --machine --total-shards $SEMAPHORE_JOB_COUNT --shard-index $SHARD_INDEX | tojunit --output $JUNIT_FILE
+            - 'mvn -q package jmeter:configure -Dmaven.test.skip=true'
+            - cache store
+  - name: "\U0001F9EA Test"
     dependencies:
-      - "\U0001F9F9 Quality"
-  - name: "\U0001F6E1️ Security (pub deps)"
+      - ⚙️ Build
     task:
+      env_vars:
+        - name: MAVEN_OPTS
+          value: '-Dmaven.repo.local=.m2'
       jobs:
-        - name: "\U0001F6E1️ Pub outdated (informational)"
+        - name: ✅ Unit Tests
           commands:
-            - dart pub outdated || true
+            - mvn -q test-compile -Dmaven.test.skip=true
+            - mvn test
+        - name: "\U0001F517 Integration Tests"
+          commands:
+            - mvn -q test-compile -Dmaven.test.skip=true
+            - mvn test -Pintegration-testing
+      epilogue:
+        always:
+          commands:
+            - test-results publish target/surefire-reports/*.xml
+  - name: "\U0001F680 Performance Tests"
     dependencies:
-      - "\U0001F9EA Tests (parallel)"
-  - name: "\U0001F4E6 Build Web (artifact)"
-    dependencies:
-      - "\U0001F9EA Tests (parallel)"
-    skip:
-      when: branch != 'main'
+      - ⚙️ Build
     task:
+      env_vars:
+        - name: MAVEN_OPTS
+          value: '-Dmaven.repo.local=.m2'
       jobs:
-        - name: "\U0001F310 flutter build web"
+        - name: "\U0001F4CA Benchmark Tests"
           commands:
-            - flutter build web --release
-            - artifact push job build/web
+            - java -version
+            - java -jar target/spring-pipeline-demo.jar > /dev/null &
+            - sleep 20
+            - 'mvn -q jmeter:jmeter'
+            - 'mvn jmeter:results'
+  - name: "\U0001F433 Dockerize"
+    dependencies:
+      - "\U0001F680 Performance Tests"
+    task:
+      env_vars:
+        - name: MAVEN_OPTS
+          value: '-Dmaven.repo.local=.m2'
+        - name: ENVIRONMENT
+          value: dev
+      jobs:
+        - name: "\U0001F4E6 Docker Build and Push"
+          commands:
+            - 'cache restore spring-pipeline-build-$SEMAPHORE_GIT_BRANCH-$(checksum pom.xml),spring-pipeline-build-$SEMAPHORE_GIT_BRANCH,spring-pipeline-build'
+            - mvn -q package -Dmaven.test.skip=true
+            - echo "$DOCKER_PASSWORD" | docker login --username "$DOCKER_USERNAME" --password-stdin
+            - 'docker pull "$DOCKER_USERNAME"/semaphore-demo-java-spring:latest || true'
+            - 'docker build --cache-from "$DOCKER_USERNAME"/semaphore-demo-java-spring:latest --build-arg ENVIRONMENT="${ENVIRONMENT}" -t "$DOCKER_USERNAME"/semaphore-demo-java-spring:latest .'
+            - 'docker push "$DOCKER_USERNAME"/semaphore-demo-java-spring:latest'
 after_pipeline:
   task:
     jobs:
-      - name: "\U0001F4CA Merge test reports"
+      - name: "\U0001F4CA Merge Reports"
         commands:
           - test-results gen-pipeline-report
