@@ -4,13 +4,6 @@ agent:
   machine:
     type: e1-standard-2
     os_image: ubuntu2004
-  containers:
-    - name: main
-      image: 'registry.semaphoreci.com/php:8.3-apache'
-    - name: postgres
-      image: 'registry.semaphoreci.com/postgres:17'
-    - name: redis
-      image: 'registry.semaphoreci.com/redis:7.0'
 fail_fast:
   stop:
     when: branch != 'main'
@@ -23,61 +16,71 @@ global_job_config:
   prologue:
     commands:
       - checkout
+      - sem-service start mysql 8.0
+      - sem-service start redis 7
+      - sem-version php 8.3
+      - sem-version node 20.11.0
       - cache restore
-      - composer install
+      - 'composer config -g github-oauth.github.com ${GITHUB_TOKEN}'
+      - composer install --no-interaction --prefer-dist
       - npm ci
+      - cp .env.example .env
+      - 'php artisan key:generate'
 blocks:
-  - name: "\U0001F6E0 Setup and Cache"
+  - name: "\U0001F6E0️ Setup and Cache"
     dependencies: []
     task:
       jobs:
-        - name: Install Dependencies
+        - name: Cache Dependencies
           commands:
             - cache store
-  - name: "\U0001F3A8 Assets"
+  - name: "\U0001F3A8 Compile Assets"
     dependencies:
-      - "\U0001F6E0 Setup and Cache"
+      - "\U0001F6E0️ Setup and Cache"
     task:
       jobs:
-        - name: Compile Assets
+        - name: Build Frontend Assets
           commands:
             - npm run build
   - name: "\U0001F50D Code Quality"
     dependencies:
-      - "\U0001F6E0 Setup and Cache"
+      - "\U0001F6E0️ Setup and Cache"
     task:
       jobs:
-        - name: Lint and Format
+        - name: Lint and Format Code
           commands:
             - ./vendor/bin/pint --test
-            - ./vendor/bin/phpstan analyze
+            - ./vendor/bin/phpstan analyse
             - npm run lint
   - name: "\U0001F510 Security Checks"
     dependencies:
-      - "\U0001F6E0 Setup and Cache"
+      - "\U0001F6E0️ Setup and Cache"
     task:
       jobs:
-        - name: Security Scan
+        - name: Run Security Audits
           commands:
             - composer audit
             - npm audit
   - name: "\U0001F9EA Test Suite"
     dependencies:
-      - "\U0001F6E0 Setup and Cache"
+      - "\U0001F6E0️ Setup and Cache"
     task:
       env_vars:
         - name: APP_ENV
           value: testing
         - name: DB_CONNECTION
-          value: pgsql
+          value: mysql
         - name: DB_HOST
-          value: postgres
+          value: 127.0.0.1
+        - name: DB_PORT
+          value: '3306'
         - name: REDIS_HOST
-          value: redis
+          value: 127.0.0.1
       jobs:
-        - name: "\U0001F7E2 PHPUnit Tests"
+        - name: "\U0001F7E2 Run PHPUnit Tests"
           parallelism: 4
           commands:
+            - 'php artisan migrate:fresh --seed'
             - php artisan test --parallel --coverage-clover=report.xml
       epilogue:
         always:
@@ -88,10 +91,10 @@ blocks:
       - "\U0001F9EA Test Suite"
     task:
       jobs:
-        - name: Dusk Tests
+        - name: Run Dusk Tests
           commands:
             - 'php artisan dusk:chrome-driver'
-            - php artisan serve & sleep 5
+            - php artisan serve --env=dusk.testing &
             - php artisan dusk
 after_pipeline:
   task:
