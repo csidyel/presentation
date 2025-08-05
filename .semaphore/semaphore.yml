@@ -1,17 +1,12 @@
 version: v1.0
-name: "\U0001F40D Django CI Pipeline (Docker)"
+name: Semaphore React Native iOS Example Pipeline
 agent:
   machine:
     type: e1-standard-2
     os_image: ubuntu2004
   containers:
     - name: main
-      image: 'registry.semaphoreci.com/python:3.8-node-browsers'
-    - name: mysql
-      image: 'registry.semaphoreci.com/mysql:8.0'
-      env_vars:
-        - name: MYSQL_ROOT_PASSWORD
-          value: root
+      image: 'registry.semaphoreci.com/android:34-node'
 fail_fast:
   stop:
     when: branch != 'master'
@@ -24,54 +19,85 @@ global_job_config:
   prologue:
     commands:
       - checkout
-      - pip install -r requirements.txt --cache-dir .pip_cache
       - cache restore
 blocks:
-  - name: "\U0001F6E0️ Install Dependencies"
+  - name: "\U0001F4E6 Install Dependencies"
     dependencies: []
     task:
       jobs:
-        - name: "\U0001F4E6 Install Python Dependencies"
+        - name: "\U0001F4C2 npm install and cache"
           commands:
-            - apt-get update && apt-get install -y python3-dev
-            - apt-get install -y default-libmysqlclient-dev
-            - pip download --cache-dir .pip_cache -r requirements.txt
+            - npm install
             - cache store
-  - name: "\U0001F50D Run Code Analysis"
-    dependencies: []
-    task:
-      jobs:
-        - name: "\U0001F6E1️ Pylint Analysis"
-          commands:
-            - git ls-files | grep -v 'migrations' | grep -v 'settings.py' | grep -v 'manage.py' | grep -E '.py$' | xargs pylint -E --load-plugins=pylint_django
-  - name: "\U0001F9EA Run Unit Tests"
+  - name: "\U0001F50D Run Linter"
     dependencies:
-      - "\U0001F6E0️ Install Dependencies"
+      - "\U0001F4E6 Install Dependencies"
     task:
       jobs:
-        - name: "\U0001F50E Test Models"
+        - name: "\U0001F9F9 Run ESLint"
           commands:
-            - python manage.py test tasks.tests.test_models
-        - name: "\U0001F50E Test Views"
-          commands:
-            - python manage.py test tasks.tests.test_views
-  - name: "\U0001F310 Run Browser Tests"
+            - npm run lint
+  - name: "\U0001F9EA iOS Unit and Integration Tests"
     dependencies:
-      - "\U0001F9EA Run Unit Tests"
+      - "\U0001F50D Run Linter"
     task:
-      env_vars:
-        - name: DB_NAME
-          value: pydjango
+      agent:
+        machine:
+          type: a2-standard-4
+          os_image: macos-xcode16
       jobs:
-        - name: "\U0001F3AD Browser Tests"
+        - name: ✅ iOS Unit and Integration Tests
+          parallelism: 2
           commands:
-            - mysql --host=mysql -uroot -proot -e "create database $DB_NAME"
-            - 'nohup python manage.py runserver 0.0.0.0:8000 &'
-            - python manage.py test tasks.tests.test_browser
-  - name: "\U0001F510 Run Security Tests"
-    dependencies: []
+            - npm test
+  - name: "\U0001F9EA iOS E2E Tests"
+    dependencies:
+      - "\U0001F50D Run Linter"
     task:
+      agent:
+        machine:
+          type: a2-standard-4
+          os_image: macos-xcode16
       jobs:
-        - name: ✅ Deployment Checklist
+        - name: "\U0001F3AD iOS E2E Tests"
+          parallelism: 2
           commands:
-            - python manage.py check --deploy --fail-level ERROR
+            - brew tap wix/brew
+            - brew install applesimutils
+            - nvm install 14
+            - cd ios && pod install && cd ..
+            - npm run detox-clean-and-build-cache
+            - npm run detox-ios-build-release
+            - npm run detox-ios-test-release
+            - artifact push workflow ios/build/Build/Products/Release-iphonesimulator/ReactNativeSemaphoreNew.app
+  - name: "\U0001F9EA Android Unit and Integration Tests"
+    dependencies:
+      - "\U0001F50D Run Linter"
+    task:
+      prologue:
+        commands:
+          - sdkmanager "platform-tools" "platforms;android-24" "emulator"
+          - sdkmanager "system-images;android-24;default;x86"
+          - echo no | avdmanager create avd -n Nexus_S_API_24 -k "system-images;android-24;default;x86" --device "Nexus S"
+      jobs:
+        - name: ✅ Android Unit and Integration Tests
+          parallelism: 2
+          commands:
+            - npm test
+  - name: "\U0001F9EA Android E2E Tests"
+    dependencies:
+      - "\U0001F50D Run Linter"
+    task:
+      prologue:
+        commands:
+          - sdkmanager "platform-tools" "platforms;android-24" "emulator"
+          - sdkmanager "system-images;android-24;default;x86"
+          - echo no | avdmanager create avd -n Nexus_S_API_24 -k "system-images;android-24;default;x86" --device "Nexus S"
+      jobs:
+        - name: "\U0001F3AD Android E2E Tests"
+          parallelism: 2
+          commands:
+            - npm run detox-clean-and-build-cache
+            - npm run detox-android-build-release
+            - npm run detox-android-test-release
+            - artifact push workflow android/app/build/outputs/apk/release/app-release.apk
