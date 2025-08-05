@@ -1,104 +1,77 @@
 version: v1.0
-name: "\U0001F680 Laravel CI Pipeline"
+name: "\U0001F40D Django CI Pipeline (Docker)"
 agent:
   machine:
     type: e1-standard-2
     os_image: ubuntu2004
+  containers:
+    - name: main
+      image: 'registry.semaphoreci.com/python:3.8-node-browsers'
+    - name: mysql
+      image: 'registry.semaphoreci.com/mysql:8.0'
+      env_vars:
+        - name: MYSQL_ROOT_PASSWORD
+          value: root
 fail_fast:
   stop:
-    when: branch != 'main'
+    when: branch != 'master'
 auto_cancel:
   running:
-    when: branch != 'main'
+    when: branch != 'master'
   queued:
-    when: branch = 'main'
+    when: branch = 'master'
 global_job_config:
   prologue:
     commands:
       - checkout
-      - sem-service start mysql 8.0
-      - sem-service start redis 7
-      - sem-version php 8.3
-      - sem-version node 20.11.0
+      - pip install -r requirements.txt --cache-dir .pip_cache
       - cache restore
-      - 'composer config -g github-oauth.github.com ${GITHUB_TOKEN}'
-      - composer install --no-interaction --prefer-dist
-      - npm ci
-      - cp .env.example .env
-      - 'php artisan key:generate'
 blocks:
-  - name: "\U0001F6E0️ Setup and Cache"
+  - name: "\U0001F6E0️ Install Dependencies"
     dependencies: []
     task:
       jobs:
-        - name: Cache Dependencies
+        - name: "\U0001F4E6 Install Python Dependencies"
           commands:
+            - apt-get update && apt-get install -y python3-dev
+            - apt-get install -y default-libmysqlclient-dev
+            - pip download --cache-dir .pip_cache -r requirements.txt
             - cache store
-  - name: "\U0001F3A8 Compile Assets"
-    dependencies:
-      - "\U0001F6E0️ Setup and Cache"
+  - name: "\U0001F50D Run Code Analysis"
+    dependencies: []
     task:
       jobs:
-        - name: Build Frontend Assets
+        - name: "\U0001F6E1️ Pylint Analysis"
           commands:
-            - npm run build
-  - name: "\U0001F50D Code Quality"
+            - git ls-files | grep -v 'migrations' | grep -v 'settings.py' | grep -v 'manage.py' | grep -E '.py$' | xargs pylint -E --load-plugins=pylint_django
+  - name: "\U0001F9EA Run Unit Tests"
     dependencies:
-      - "\U0001F6E0️ Setup and Cache"
+      - "\U0001F6E0️ Install Dependencies"
     task:
       jobs:
-        - name: Lint and Format Code
+        - name: "\U0001F50E Test Models"
           commands:
-            - ./vendor/bin/pint --test
-            - ./vendor/bin/phpstan analyse
-            - npm run lint
-  - name: "\U0001F510 Security Checks"
-    dependencies:
-      - "\U0001F6E0️ Setup and Cache"
-    task:
-      jobs:
-        - name: Run Security Audits
+            - python manage.py test tasks.tests.test_models
+        - name: "\U0001F50E Test Views"
           commands:
-            - composer audit
-            - npm audit
-  - name: "\U0001F9EA Test Suite"
+            - python manage.py test tasks.tests.test_views
+  - name: "\U0001F310 Run Browser Tests"
     dependencies:
-      - "\U0001F6E0️ Setup and Cache"
+      - "\U0001F9EA Run Unit Tests"
     task:
       env_vars:
-        - name: APP_ENV
-          value: testing
-        - name: DB_CONNECTION
-          value: mysql
-        - name: DB_HOST
-          value: 127.0.0.1
-        - name: DB_PORT
-          value: '3306'
-        - name: REDIS_HOST
-          value: 127.0.0.1
+        - name: DB_NAME
+          value: pydjango
       jobs:
-        - name: "\U0001F7E2 Run PHPUnit Tests"
-          parallelism: 4
+        - name: "\U0001F3AD Browser Tests"
           commands:
-            - 'php artisan migrate:fresh --seed'
-            - php artisan test --parallel --coverage-clover=report.xml
-      epilogue:
-        always:
-          commands:
-            - '[[ -f report.xml ]] && test-results publish report.xml'
-  - name: "\U0001F310 Browser Tests"
-    dependencies:
-      - "\U0001F9EA Test Suite"
+            - mysql --host=mysql -uroot -proot -e "create database $DB_NAME"
+            - 'nohup python manage.py runserver 0.0.0.0:8000 &'
+            - python manage.py test tasks.tests.test_browser
+  - name: "\U0001F510 Run Security Tests"
+    dependencies: []
     task:
       jobs:
-        - name: Run Dusk Tests
+        - name: ✅ Deployment Checklist
           commands:
-            - 'php artisan dusk:chrome-driver'
-            - php artisan serve --env=dusk.testing &
-            - php artisan dusk
-after_pipeline:
-  task:
-    jobs:
-      - name: "Merge Reports \U0001F4CA"
-        commands:
-          - test-results gen-pipeline-report
+            - python manage.py check --deploy --fail-level ERROR
