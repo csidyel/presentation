@@ -138,4 +138,8 @@ blocks:
       - "🛡️ Bundler Audit"
       - "🖼️ Webpacker Build"
 
-
+promotions:
+- name: Production
+  pipeline_file: production.yml
+  auto_promote:
+    when: "result = 'passed' and branch = 'master'"
