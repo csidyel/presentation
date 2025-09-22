@@ -1,5 +1,5 @@
 version: v1.0
-name: "🚀 Deploy to production (Demo Only)"
+name: "🚀 Deploy to production"
 
 agent:
   machine:
