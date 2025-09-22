@@ -132,20 +132,6 @@ blocks:
             - run_or_pass "bundle exec rake db:setup"
             # Try to run split tests with Boosters; if unavailable, sleep and pass
             - run_or_pass 'rspec_booster --job "$SEMAPHORE_JOB_INDEX/$SEMAPHORE_JOB_COUNT" --format RspecJunitFormatter --out report.xml --format documentation'
-            # If no JUnit got produced, create a tiny dummy so report steps don't fail
-            - |
-              if [ ! -f report.xml ]; then
-                echo '[demo] Creating dummy JUnit report.xml'
-                cat > report.xml <<'XML'
-                <testsuite name="demo" tests="1" failures="0" errors="0" time="0.0">
-                  <testcase classname="demo" name="placeholder"/>
-                </testsuite>
-                XML
-              fi
-      epilogue:
-        always:
-          commands:
-            - run_or_pass 'test -f report.xml && test-results publish report.xml'
     dependencies:
       - "🧹 RuboCop"
       - "🛡️ Brakeman"
