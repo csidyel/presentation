@@ -1,14 +1,12 @@
 version: v1.0
-name: "💎 Ruby CI Pipeline"
-
-# ---------------------------------------------------------------------
-# GLOBAL SETTINGS
-# ---------------------------------------------------------------------
+name: "\U0001F48E Ruby CI Pipeline"
 agent:
   machine:
-    type: f1-standard-2
-    os_image: ubuntu2404
-
+    type: e1-standard-2
+    os_image: ubuntu2004
+  containers:
+    - name: main
+      image: 'semaphoreci/ubuntu:20.04'
 fail_fast:
   stop:
     when: branch != 'main'
@@ -17,12 +15,9 @@ auto_cancel:
     when: branch != 'main'
   queued:
     when: branch = 'main'
-
-# Common pre-steps for every job
 global_job_config:
   prologue:
     commands:
-      # Helper: run a command, or sleep N seconds and pass
       - |
         run_or_pass() {
           echo "→ $*"
@@ -35,22 +30,15 @@ global_job_config:
           fi
           return 0
         }
-      - export SLEEP_SEC="${SLEEP_SEC:-12}"
-
-      # Usual setup, protected by run_or_pass
+      - 'export SLEEP_SEC="${SLEEP_SEC:-12}"'
       - run_or_pass checkout
       - run_or_pass "sem-service start postgres 17"
       - run_or_pass "sem-service start redis 7"
       - run_or_pass "sem-version ruby 3.2.2"
       - run_or_pass "sem-version node 20.11.0"
       - run_or_pass "cache restore"
-
-# ---------------------------------------------------------------------
-# WORKFLOW
-# ---------------------------------------------------------------------
 blocks:
-  # ---------------- SETUP ----------------
-  - name: "🛠 Setup & Cache"
+  - name: "\U0001F6E0 Setup & Cache"
     task:
       jobs:
         - name: Install Gems & JS deps
@@ -62,21 +50,16 @@ blocks:
             - run_or_pass "gem install --no-document semaphore_test_boosters"
             - run_or_pass "cache store"
     dependencies: []
-
-  # ------------- FRONT-END BUILD -------------
-  - name: "🖼️ Webpacker Build"
+  - name: "\U0001F5BC️ Webpacker Build"
     task:
       jobs:
         - name: Compile Assets
           commands:
             - run_or_pass "cache restore webpacker-assets"
-            - run_or_pass "bundle exec rake webpacker:compile"
+            - 'run_or_pass "bundle exec rake webpacker:compile"'
             - run_or_pass "cache store webpacker-assets public/packs"
-    dependencies:
-      - "🛠 Setup & Cache"
-
-  # ------------- CODE QUALITY -------------
-  - name: "🔍 ESLint & Stylelint"
+    dependencies: []
+  - name: "\U0001F50D ESLint & Stylelint"
     task:
       jobs:
         - name: JS / CSS Lint
@@ -84,38 +67,32 @@ blocks:
             - run_or_pass "yarn run eslint ."
             - run_or_pass "yarn run stylelint '**/*.scss'"
     dependencies:
-      - "🖼️ Webpacker Build"
-
-  - name: "🧹 RuboCop"
+      - "\U0001F5BC️ Webpacker Build"
+  - name: "\U0001F9F9 RuboCop"
     task:
       jobs:
         - name: Ruby Style Check
           commands:
             - run_or_pass "bundle exec rubocop"
     dependencies:
-      - "🛠 Setup & Cache"
-
-  # ------------- SECURITY -------------
-  - name: "🛡️ Brakeman"
+      - "\U0001F6E0 Setup & Cache"
+  - name: "\U0001F6E1️ Brakeman"
     task:
       jobs:
         - name: Static Analysis
           commands:
             - run_or_pass "bundle exec brakeman --force"
     dependencies:
-      - "🛠 Setup & Cache"
-
-  - name: "🛡️ Bundler Audit"
+      - "\U0001F6E0 Setup & Cache"
+  - name: "\U0001F6E1️ Bundler Audit"
     task:
       jobs:
         - name: Gem CVE Check
           commands:
             - run_or_pass "bundle exec bundle-audit check --update"
     dependencies:
-      - "🛠 Setup & Cache"
-
-  # ------------- TEST SUITE (Boosters) -------------
-  - name: "🚦 RSpec Suite"
+      - "\U0001F6E0 Setup & Cache"
+  - name: "\U0001F6A6 RSpec Suite"
     task:
       env_vars:
         - name: RAILS_ENV
@@ -125,21 +102,19 @@ blocks:
         - name: PGUSER
           value: postgres
       jobs:
-        - name: "🟢 RSpec Tests"
+        - name: "\U0001F7E2 RSpec Tests"
           parallelism: 5
           commands:
             - run_or_pass "cache restore webpacker-assets"
-            - run_or_pass "bundle exec rake db:setup"
-            # Try to run split tests with Boosters; if unavailable, sleep and pass
+            - 'run_or_pass "bundle exec rake db:setup"'
             - run_or_pass 'rspec_booster --job "$SEMAPHORE_JOB_INDEX/$SEMAPHORE_JOB_COUNT" --format RspecJunitFormatter --out report.xml --format documentation'
     dependencies:
-      - "🧹 RuboCop"
-      - "🛡️ Brakeman"
-      - "🛡️ Bundler Audit"
-      - "🖼️ Webpacker Build"
-
+      - "\U0001F9F9 RuboCop"
+      - "\U0001F6E1️ Brakeman"
+      - "\U0001F6E1️ Bundler Audit"
+      - "\U0001F5BC️ Webpacker Build"
 promotions:
-- name: Production
-  pipeline_file: production.yml
-  auto_promote:
-    when: "result = 'passed' and branch = 'master'"
+  - name: Production
+    pipeline_file: production.yml
+    auto_promote:
+      when: result = 'passed' and branch = 'master'
