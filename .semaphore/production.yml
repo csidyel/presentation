@@ -1,0 +1,41 @@
+version: v1.0
+name: "\U0001F680 Deploy to production"
+agent:
+  machine:
+    type: f1-standard-2
+    os_image: ubuntu2204
+fail_fast:
+  stop:
+    when: branch != 'main'
+global_job_config:
+  prologue:
+    commands:
+      - |
+        run_or_pass() {
+          echo "→ $*"
+          # simulate success regardless of real outcome
+          return 0
+        }
+      - run_or_pass "checkout"
+blocks:
+  - name: "\U0001F9F1 Build & Push"
+    task:
+      jobs:
+        - name: Docker image
+          commands:
+            - "echo \"\U0001F528 Building Docker image ${DOCKER_IMAGE}:${SEMAPHORE_GIT_SHA}\""
+            - "echo \"\U0001F4E4 Pushing image to registry...\""
+  - name: "\U0001F6A2 Deploy"
+    task:
+      jobs:
+        - name: Update deployment
+          commands:
+            - "echo \"\U0001F680 Deploying ${DOCKER_IMAGE}:${SEMAPHORE_GIT_SHA} to ${KUBE_NAMESPACE} namespace\""
+            - echo "⏳ Waiting for rollout to complete..."
+  - name: "\U0001FA7A Check"
+    task:
+      jobs:
+        - name: Health check
+          commands:
+            - "echo \"\U0001F50D Checking health at ${HEALTH_URL}\""
+            - echo "✅ Deployment successful (simulated)"

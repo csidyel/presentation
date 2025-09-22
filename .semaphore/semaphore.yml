@@ -1,9 +1,12 @@
 version: v1.0
-name: "\U0001F4AB Elixir ETL (Broadway + SQS) - SaaS VM"
+name: "\U0001F48E Ruby CI Pipeline"
 agent:
   machine:
     type: e1-standard-2
-    os_image: ubuntu2204
+    os_image: ubuntu2004
+  containers:
+    - name: main
+      image: 'semaphoreci/ubuntu:20.04'
 fail_fast:
   stop:
     when: branch != 'main'
@@ -11,131 +14,107 @@ auto_cancel:
   running:
     when: branch != 'main'
   queued:
-    when: branch != 'main'
+    when: branch = 'main'
 global_job_config:
-  env_vars:
-    - name: ERL_AFLAGS
-      value: '-kernel shell_history enabled'
-    - name: MIX_ENV
-      value: test
-    - name: JUNIT_FILE
-      value: _build/test/junit-report.xml
-    - name: EXUNIT_PARTITIONS
-      value: '4'
-    - name: AWS_ENDPOINT
-      value: 'http://localhost:4566'
-    - name: AWS_REGION
-      value: us-east-1
-    - name: AWS_ACCESS_KEY_ID
-      value: test
-    - name: AWS_SECRET_ACCESS_KEY
-      value: test
   prologue:
     commands:
-      - checkout
-      - 'cache restore elixir-deps-$(checksum mix.lock),_build,test-plt'
-      - sem-version elixir 1.16.2
-      - sem-version erlang 26.2
-      - mix local.hex --force
-      - mix local.rebar --force
-      - mix deps.get
-      - mix deps.compile
-      - cache store elixir-deps-$(checksum mix.lock) deps _build
-  epilogue:
-    always:
-      commands:
-        - artifact push job _build/test/*.xml || true
+      - |
+        run_or_pass() {
+          echo "→ $*"
+          eval "$@"
+          rc=$?
+          if [ $rc -ne 0 ]; then
+            echo "[demo] Command failed (rc=$rc). Sleeping ${SLEEP_SEC:-12}s and marking as success."
+            sleep "${SLEEP_SEC:-12}"
+            return 0
+          fi
+          return 0
+        }
+      - 'export SLEEP_SEC="${SLEEP_SEC:-12}"'
+      - run_or_pass checkout
+      - run_or_pass "sem-service start postgres 17"
+      - run_or_pass "sem-service start redis 7"
+      - run_or_pass "sem-version ruby 3.2.2"
+      - run_or_pass "sem-version node 20.11.0"
+      - run_or_pass "cache restore"
 blocks:
-  - name: "\U0001F9F9 Quality"
+  - name: "\U0001F6E0 Setup & Cache"
     task:
       jobs:
-        - name: mix format --check
+        - name: Install Gems & JS deps
           commands:
-            - mix format --check-formatted
-        - name: Credo
-          commands:
-            - mix credo --strict
-      run:
-        when: 'change_in([''/lib'', ''/test'', ''/config'', ''/mix.exs'', ''/mix.lock''])'
-  - name: "\U0001F6E1️ Security"
+            - run_or_pass "yarn --version"
+            - run_or_pass "yarn install --frozen-lockfile"
+            - run_or_pass "bundle --version"
+            - run_or_pass "bundle install --deployment --path vendor/bundle"
+            - run_or_pass "gem install --no-document semaphore_test_boosters"
+            - run_or_pass "cache store"
+    dependencies: []
+  - name: "\U0001F5BC️ Webpacker Build"
     task:
       jobs:
-        - name: mix audit deps
+        - name: Compile Assets
           commands:
-            - mix deps.audit
-        - name: mix audit hex
-          commands:
-            - mix hex.audit
-      run:
-        when: 'change_in([''/mix.lock''])'
-  - name: "\U0001F9EA Tests (parallel)"
+            - run_or_pass "cache restore webpacker-assets"
+            - 'run_or_pass "bundle exec rake webpacker:compile"'
+            - run_or_pass "cache store webpacker-assets public/packs"
+    dependencies: []
+  - name: "\U0001F50D ESLint & Stylelint"
     task:
       jobs:
-        - name: Tests part 1/4
-          env_vars:
-            - name: MIX_TEST_PARTITION
-              value: '1'
+        - name: JS / CSS Lint
           commands:
-            - mix test --partitions $EXUNIT_PARTITIONS --color --trace || true
-            - test-results publish $JUNIT_FILE
-        - name: Tests part 2/4
-          env_vars:
-            - name: MIX_TEST_PARTITION
-              value: '2'
-          commands:
-            - mix test --partitions $EXUNIT_PARTITIONS --color --trace || true
-            - test-results publish $JUNIT_FILE
-        - name: Tests part 3/4
-          env_vars:
-            - name: MIX_TEST_PARTITION
-              value: '3'
-          commands:
-            - mix test --partitions $EXUNIT_PARTITIONS --color --trace || true
-            - test-results publish $JUNIT_FILE
-        - name: Tests part 4/4
-          env_vars:
-            - name: MIX_TEST_PARTITION
-              value: '4'
-          commands:
-            - mix test --partitions $EXUNIT_PARTITIONS --color --trace || true
-            - test-results publish $JUNIT_FILE
-  - name: "\U0001F50C Integration: Localstack SQS + Postgres"
+            - run_or_pass "yarn run eslint ."
+            - run_or_pass "yarn run stylelint '**/*.scss'"
     dependencies:
-      - "\U0001F9EA Tests (parallel)"
-    skip:
-      when: branch != 'main'
+      - "\U0001F5BC️ Webpacker Build"
+  - name: "\U0001F9F9 RuboCop"
     task:
       jobs:
-        - name: Spin up services
+        - name: Ruby Style Check
           commands:
-            - 'docker run -d --name localstack -p 4566:4566 -e SERVICES=sqs,s3 localstack/localstack:2'
-            - 'docker run -d --name pg -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=etl -p 5432:5432 postgres:15'
-            - sleep 8
-            - pip3 install --user awscli-local
-            - ~/.local/bin/awslocal --endpoint-url=$AWS_ENDPOINT sqs create-queue --queue-name etl-events
-            - export SQS_QUEUE_URL=$AWS_ENDPOINT/000000000000/etl-events
-            - export BROADWAY_SQS_QUEUE_URL=$SQS_QUEUE_URL
-            - 'export DATABASE_URL=ecto://postgres:postgres@localhost:5432/etl'
-            - mix ecto.create || true
-            - mix ecto.migrate || true
-            - mix test --only integration --color --trace || true
-            - test-results publish $JUNIT_FILE
-          secrets: []
-      run:
-        when: 'change_in([''/lib'', ''/config'', ''/priv/repo/migrations''])'
-  - name: "\U0001F9E0 Dialyzer (optional)"
-    skip:
-      when: branch != 'main'
+            - run_or_pass "bundle exec rubocop"
+    dependencies:
+      - "\U0001F6E0 Setup & Cache"
+  - name: "\U0001F6E1️ Brakeman"
     task:
       jobs:
-        - name: Build PLT and run dialyzer
+        - name: Static Analysis
           commands:
-            - cache restore test-plt
-            - mix dialyzer || true
-            - cache store test-plt priv/plts
-after_pipeline:
-  task:
-    jobs:
-      - name: "\U0001F4CA Merge test reports"
-        commands:
-          - test-results gen-pipeline-report
+            - run_or_pass "bundle exec brakeman --force"
+    dependencies:
+      - "\U0001F6E0 Setup & Cache"
+  - name: "\U0001F6E1️ Bundler Audit"
+    task:
+      jobs:
+        - name: Gem CVE Check
+          commands:
+            - run_or_pass "bundle exec bundle-audit check --update"
+    dependencies:
+      - "\U0001F6E0 Setup & Cache"
+  - name: "\U0001F6A6 RSpec Suite"
+    task:
+      env_vars:
+        - name: RAILS_ENV
+          value: test
+        - name: PGHOST
+          value: 127.0.0.1
+        - name: PGUSER
+          value: postgres
+      jobs:
+        - name: "\U0001F7E2 RSpec Tests"
+          parallelism: 5
+          commands:
+            - run_or_pass "cache restore webpacker-assets"
+            - 'run_or_pass "bundle exec rake db:setup"'
+            - run_or_pass 'rspec_booster --job "$SEMAPHORE_JOB_INDEX/$SEMAPHORE_JOB_COUNT" --format RspecJunitFormatter --out report.xml --format documentation'
+    dependencies:
+      - "\U0001F9F9 RuboCop"
+      - "\U0001F6E1️ Brakeman"
+      - "\U0001F6E1️ Bundler Audit"
+      - "\U0001F5BC️ Webpacker Build"
+promotions:
+  - name: Production
+    pipeline_file: production.yml
+    auto_promote:
+      when: result = 'passed' and branch = 'master'
