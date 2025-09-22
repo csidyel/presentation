@@ -46,8 +46,6 @@ global_job_config:
           return 0
         }
       - run_or_pass checkout
-      - run_or_pass "sem-version docker 26.1"
-      - run_or_pass "sem-version kubectl 1.30"
 
 blocks:
   - name: "🧱 Build"
