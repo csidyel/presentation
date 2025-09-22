@@ -27,7 +27,7 @@ blocks:
       jobs:
         - name: Docker image
           commands:
-            - echo "🔨 Building Docker image: ${DOCKER_IMAGE}:${SEMAPHORE_GIT_SHA}"
+            - echo "🔨 Building Docker image ${DOCKER_IMAGE}:${SEMAPHORE_GIT_SHA}"
             - echo "📤 Pushing image to registry..."
 
   - name: "🚢 Deploy"
