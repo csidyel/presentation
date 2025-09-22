@@ -1,5 +1,5 @@
 version: v1.0
-name: "🚀 Deploy to production"
+name: "🚀 Deploy to production (Demo Only)"
 
 agent:
   machine:
@@ -9,79 +9,39 @@ agent:
 fail_fast:
   stop:
     when: branch != 'main'
-auto_cancel:
-  running:
-    when: branch != 'main'
-  queued:
-    when: branch = 'main'
 
 global_job_config:
-  env_vars:
-    - name: APP_NAME
-      value: demo-ruby-app
-    - name: DOCKER_REGISTRY
-      value: registry.example.com
-    - name: DOCKER_IMAGE
-      value: registry.example.com/demo/demo-ruby-app
-    - name: KUBE_CONTEXT
-      value: demo-context
-    - name: KUBE_NAMESPACE
-      value: demo
-    - name: HEALTH_URL
-      value: https://demo.example.com/healthz
-    - name: SLEEP_SEC
-      value: "8"
   prologue:
     commands:
       - |
         run_or_pass() {
           echo "→ $*"
-          eval "$@"
-          rc=$?
-          if [ $rc -ne 0 ]; then
-            echo "[demo] failed (rc=$rc). Sleeping ${SLEEP_SEC:-8}s then passing."
-            sleep "${SLEEP_SEC:-8}"
-            return 0
-          fi
+          # simulate success regardless of real outcome
           return 0
         }
-      - run_or_pass checkout
+      - run_or_pass "checkout"
 
 blocks:
-  - name: "🧱 Build"
+  - name: "🧱 Build & Push"
     task:
       jobs:
-        - name: Docker build
+        - name: Docker image
           commands:
-            - run_or_pass "docker build -t ${DOCKER_IMAGE}:${SEMAPHORE_GIT_SHA} ."
-
-  - name: "📤 Push"
-    task:
-      secrets:
-        - name: docker-registry-credentials   # DOCKER_USERNAME, DOCKER_PASSWORD
-      jobs:
-        - name: Push image
-          commands:
-            - run_or_pass "echo '${DOCKER_PASSWORD:-demo}' | docker login ${DOCKER_REGISTRY} -u '${DOCKER_USERNAME:-demo}' --password-stdin"
-            - run_or_pass "docker tag ${DOCKER_IMAGE}:${SEMAPHORE_GIT_SHA} ${DOCKER_IMAGE}:demo-${SEMAPHORE_WORKFLOW_ID}"
-            - run_or_pass "docker push ${DOCKER_IMAGE}:demo-${SEMAPHORE_WORKFLOW_ID}"
+            - echo "🔨 Building Docker image: ${DOCKER_IMAGE}:${SEMAPHORE_GIT_SHA}"
+            - echo "📤 Pushing image to registry..."
 
   - name: "🚢 Deploy"
     task:
-      secrets:
-        - name: kubeconfig-demo               # file secret mounted at /home/semaphore/.secrets/kubeconfig
       jobs:
-        - name: kubectl apply
+        - name: Update deployment
           commands:
-            - run_or_pass "mkdir -p ~/.kube && cp /home/semaphore/.secrets/kubeconfig ~/.kube/config"
-            - run_or_pass "kubectl config use-context ${KUBE_CONTEXT}"
-            - run_or_pass "kubectl -n ${KUBE_NAMESPACE} set image deploy/${APP_NAME} ${APP_NAME}=${DOCKER_IMAGE}:demo-${SEMAPHORE_WORKFLOW_ID} --record"
-            - run_or_pass "kubectl -n ${KUBE_NAMESPACE} rollout status deploy/${APP_NAME} --timeout=120s"
+            - echo "🚀 Deploying ${DOCKER_IMAGE}:${SEMAPHORE_GIT_SHA} to ${KUBE_NAMESPACE} namespace"
+            - echo "⏳ Waiting for rollout to complete..."
 
   - name: "🩺 Check"
     task:
       jobs:
         - name: Health check
           commands:
-            - run_or_pass "curl -fsSL ${HEALTH_URL}"
-            - run_or_pass "kubectl -n ${KUBE_NAMESPACE} get pods -l app=${APP_NAME}"
+            - echo "🔍 Checking health at ${HEALTH_URL}"
+            - echo "✅ Deployment successful (simulated)"
