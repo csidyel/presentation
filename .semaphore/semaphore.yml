@@ -43,6 +43,7 @@ blocks:
       jobs:
         - name: Install Gems & JS deps
           commands:
+            - echo "test"
             - run_or_pass "yarn --version"
             - run_or_pass "yarn install --frozen-lockfile"
             - run_or_pass "bundle --version"
