@@ -6,12 +6,12 @@ agent:
     os_image: ubuntu2404
 fail_fast:
   stop:
-    when: branch != 'main'
+    when: branch != 'master'
 auto_cancel:
   running:
-    when: branch != 'main'
+    when: branch != 'master'
   queued:
-    when: branch = 'main'
+    when: branch = 'master'
 global_job_config:
   prologue:
     commands:
@@ -71,8 +71,7 @@ blocks:
       jobs:
         - name: Ruby Style Check
           commands:
-            # run_or_pass "bundle exec rubocop"
-            - fail
+            - run_or_pass "bundle exec rubocop"
     dependencies:
       - "\U0001F6E0 Setup & Cache"
   - name: "\U0001F6E1️ Brakeman"
