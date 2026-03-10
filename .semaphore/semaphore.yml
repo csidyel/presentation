@@ -6,7 +6,7 @@ agent:
     os_image: ubuntu2404
 fail_fast:
   stop:
-    when: (branch != 'staging') and (branch != 'master')
+    when: (branch != 'staging') or (branch != 'master')
 auto_cancel:
   running:
     when: branch != 'master'
