@@ -71,7 +71,8 @@ blocks:
       jobs:
         - name: Ruby Style Check
           commands:
-            - run_or_pass "bundle exec rubocop"
+            # run_or_pass "bundle exec rubocop"
+            - fail
     dependencies:
       - "\U0001F6E0 Setup & Cache"
   - name: "\U0001F6E1️ Brakeman"
