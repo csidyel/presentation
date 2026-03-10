@@ -9,7 +9,7 @@ fail_fast:
     when: "branch != 'staging'" #AND branch != 'master'"
 auto_cancel:
   running:
-    when: "branch != 'staging'" #AND branch != 'master'"
+    when: "branch != 'staging'" ##AND branch != 'master'"
   queued:
     when: branch = 'master'
 global_job_config:
