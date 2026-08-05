@@ -12,3 +12,5 @@ blocks:
         - name: 'Job #1'
           commands:
             - echo $TEST_SECRET
+      secrets:
+        - name: TEST_SECRET
